@@ -14,6 +14,7 @@ import (
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/config"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/database"
 	apirouter "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/http/router"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/rbac"
 	apiredis "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/redis"
 )
 
@@ -38,7 +39,8 @@ func main() {
 	}
 	defer func() { _ = redisClient.Close() }()
 	authSvc := auth.NewService(db.Pool, cfg.JWT)
-	srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: apirouter.New(apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger}, apirouter.AuthRoutes(authSvc)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	rbacSvc := rbac.NewService(db.Pool)
+	srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: apirouter.New(apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger}, apirouter.AuthRoutes(authSvc), apirouter.RBACRoutes(authSvc, rbacSvc)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("api server listening", "addr", srv.Addr)
