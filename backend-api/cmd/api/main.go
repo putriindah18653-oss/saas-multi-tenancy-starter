@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	apiredis "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/redis"
+	apirouter "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/router"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/audit"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/auth"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/config"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
-	apirouter "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/router"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/rbac"
-	apiredis "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/redis"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/tenant"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/user"
 )
@@ -46,7 +46,22 @@ func main() {
 	tenantSvc := tenant.NewService(db.Pool)
 	auditSvc := audit.NewService(db.Pool)
 	userSvc := user.NewService(db.Pool)
-	srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: apirouter.New(apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger}, apirouter.AuthRoutes(authSvc), apirouter.RBACRoutes(authSvc, rbacSvc), apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc), apirouter.TenantUserRoutes(authSvc, rbacSvc, userSvc)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	srv := &http.Server{
+		Addr: cfg.HTTP.Addr,
+		Handler: apirouter.New(
+			apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger},
+			apirouter.AuthRoutes(authSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy),
+			apirouter.RBACRoutes(authSvc, rbacSvc),
+			apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc),
+			apirouter.TenantUserRoutes(authSvc, rbacSvc, userSvc, auditSvc, cfg.App.TrustProxy),
+			apirouter.TenantSettingsRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
+			apirouter.AuditRoutes(authSvc, rbacSvc, auditSvc),
+		),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("api server listening", "addr", srv.Addr)

@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,6 +37,9 @@ func (s *Service) List(ctx context.Context) ([]Tenant, error) {
 	return out, rows.Err()
 }
 func (s *Service) Create(ctx context.Context, creatorUserID, name, sl string) (Tenant, error) {
+	if creatorUserID == "" {
+		return Tenant{}, errors.New("creator user is required")
+	}
 	if sl == "" {
 		sl = slug(name)
 	}

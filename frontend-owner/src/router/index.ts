@@ -6,6 +6,7 @@ import AppDashboard from '@/pages/app/AppDashboard.vue'
 import TenantList from '@/pages/app/TenantList.vue'
 import TenantCreate from '@/pages/app/TenantCreate.vue'
 import TenantDetail from '@/pages/app/TenantDetail.vue'
+import AppAuditPage from '@/pages/app/AppAuditPage.vue'
 import ForbiddenPage from '@/pages/errors/ForbiddenPage.vue'
 import { useAuthStore } from '@/stores/auth'
 import { canOwner, type OwnerPermission } from '@/services/rbac'
@@ -30,6 +31,7 @@ const routes = [
       { path: 'tenants', name: 'app-tenant-list', component: TenantList, meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
       { path: 'tenants/create', name: 'app-tenant-create', component: TenantCreate, meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.create' } },
       { path: 'tenants/:id', name: 'app-tenant-detail', component: TenantDetail, meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
+      { path: 'audit', name: 'app-audit', component: AppAuditPage, meta: { requiresAuth: true, scope: 'owner', permission: 'app.audit.read' } },
     ],
   },
 ]

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,9 +25,9 @@ type Service struct{ db *pgxpool.Pool }
 
 func NewService(db *pgxpool.Pool) *Service { return &Service{db: db} }
 func tempPassword() string                 { b := make([]byte, 8); _, _ = rand.Read(b); return hex.EncodeToString(b) }
-func ValidTenantRole(role string) bool {
+func assignableTenantRole(role string) bool {
 	switch role {
-	case "owner-tenant", "admin", "finance", "support":
+	case "admin", "finance", "support":
 		return true
 	default:
 		return false
@@ -58,7 +59,12 @@ func (s *Service) List(ctx context.Context, tenantID string) ([]Member, error) {
 	return out, rows.Err()
 }
 func (s *Service) Invite(ctx context.Context, tenantID, name, email, role string) (Member, string, error) {
-	if !ValidTenantRole(role) {
+	name = strings.TrimSpace(name)
+	email = strings.ToLower(strings.TrimSpace(email))
+	if name == "" || email == "" {
+		return Member{}, "", errors.New("name and email are required")
+	}
+	if !assignableTenantRole(role) {
 		return Member{}, "", errors.New("invalid role")
 	}
 	pass := tempPassword()
@@ -73,7 +79,7 @@ func (s *Service) Invite(ctx context.Context, tenantID, name, email, role string
 	defer tx.Rollback(ctx)
 	var userID string
 	createdUser := false
-	err = tx.QueryRow(ctx, "INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) ON CONFLICT(email) DO NOTHING RETURNING id", name, email, h).Scan(&userID)
+	err = tx.QueryRow(ctx, "INSERT INTO users(name,email,password_hash,must_change_password) VALUES($1,$2,$3,true) ON CONFLICT(email) DO NOTHING RETURNING id", name, email, h).Scan(&userID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = tx.QueryRow(ctx, "SELECT id FROM users WHERE email=$1", email).Scan(&userID)
 	} else if err == nil {
@@ -83,7 +89,7 @@ func (s *Service) Invite(ctx context.Context, tenantID, name, email, role string
 		return Member{}, "", err
 	}
 	var m Member
-	err = tx.QueryRow(ctx, "INSERT INTO user_tenants(user_id,tenant_id,role) VALUES($1,$2,$3) ON CONFLICT(user_id,tenant_id) DO UPDATE SET role=$3,is_active=true,updated_at=now() RETURNING id,user_id,tenant_id,role,is_active", userID, tenantID, role).Scan(&m.ID, &m.UserID, &m.TenantID, &m.Role, &m.IsActive)
+	err = tx.QueryRow(ctx, "INSERT INTO user_tenants(user_id,tenant_id,role) VALUES($1,$2,$3) ON CONFLICT(user_id,tenant_id) DO UPDATE SET role=CASE WHEN user_tenants.role='owner-tenant' THEN user_tenants.role ELSE $3 END,is_active=true,updated_at=now() RETURNING id,user_id,tenant_id,role,is_active", userID, tenantID, role).Scan(&m.ID, &m.UserID, &m.TenantID, &m.Role, &m.IsActive)
 	if err != nil {
 		return Member{}, "", err
 	}
@@ -98,15 +104,15 @@ func (s *Service) Invite(ctx context.Context, tenantID, name, email, role string
 	return m, pass, nil
 }
 func (s *Service) ChangeRole(ctx context.Context, tenantID, memberID, role string) (Member, error) {
-	if !ValidTenantRole(role) {
+	if !assignableTenantRole(role) {
 		return Member{}, errors.New("invalid role")
 	}
 	var m Member
-	err := s.db.QueryRow(ctx, "UPDATE user_tenants ut SET role=$3,updated_at=now() FROM users u WHERE ut.user_id=u.id AND ut.tenant_id=$1 AND ut.id=$2 RETURNING ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active", tenantID, memberID, role).Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive)
+	err := s.db.QueryRow(ctx, "UPDATE user_tenants ut SET role=$3,updated_at=now() FROM users u WHERE ut.user_id=u.id AND ut.tenant_id=$1 AND ut.id=$2 AND ut.role<>'owner-tenant' RETURNING ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active", tenantID, memberID, role).Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive)
 	return m, err
 }
 func (s *Service) Remove(ctx context.Context, tenantID, memberID string) error {
-	tag, err := s.db.Exec(ctx, "UPDATE user_tenants SET is_active=false,updated_at=now() WHERE tenant_id=$1 AND id=$2", tenantID, memberID)
+	tag, err := s.db.Exec(ctx, "UPDATE user_tenants SET is_active=false,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND role<>'owner-tenant'", tenantID, memberID)
 	if err != nil {
 		return err
 	}

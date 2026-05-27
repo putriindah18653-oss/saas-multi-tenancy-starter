@@ -74,9 +74,10 @@ CREATE INDEX idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE UNIQUE INDEX idx_users_single_owner_app ON users(app_role) WHERE app_role = 'owner-app';
 
--- Hard-seed the single platform owner at install time.
+-- Demo-only platform owner seed.
 -- Initial credentials: owner@app.local / DemoPass123!
--- Rotate this password immediately outside local/demo environments.
+-- Production rule: replace/remove this seed and provision owner-app through a one-time,
+-- secret-backed bootstrap process before exposing the service.
 INSERT INTO users (id, name, email, password_hash, app_role, is_active)
 VALUES (
   '11111111-1111-1111-1111-111111111111',
@@ -99,7 +100,7 @@ ON CONFLICT(scope, name) DO NOTHING;
 
 INSERT INTO permissions(scope, key, description) VALUES
 ('app','app.tenants.read','Read tenants'),('app','app.tenants.create','Create tenants'),('app','app.tenants.update','Update tenants'),('app','app.tenants.delete','Delete tenants'),('app','app.users.read','Read app users'),('app','app.users.manage','Manage app users'),('app','app.audit.read','Read app audit'),
-('tenant','tenant.dashboard.read','Read tenant dashboard'),('tenant','tenant.users.read','Read tenant users'),('tenant','tenant.users.invite','Invite tenant users'),('tenant','tenant.users.update','Update tenant users'),('tenant','tenant.users.remove','Remove tenant users'),('tenant','tenant.settings.read','Read tenant settings'),('tenant','tenant.settings.update','Update tenant settings'),('tenant','tenant.billing.read','Read tenant billing'),('tenant','tenant.billing.manage','Manage tenant billing'),('tenant','tenant.reports.read','Read tenant reports'),('tenant','tenant.support.manage','Manage tenant support')
+('tenant','tenant.dashboard.read','Read tenant dashboard'),('tenant','tenant.users.read','Read tenant users'),('tenant','tenant.users.invite','Invite tenant users'),('tenant','tenant.users.update','Update tenant users'),('tenant','tenant.users.remove','Remove tenant users'),('tenant','tenant.settings.read','Read tenant settings'),('tenant','tenant.settings.update','Update tenant settings'),('tenant','tenant.audit.read','Read tenant audit'),('tenant','tenant.billing.read','Read tenant billing'),('tenant','tenant.billing.manage','Manage tenant billing'),('tenant','tenant.reports.read','Read tenant reports'),('tenant','tenant.support.manage','Manage tenant support')
 ON CONFLICT(key) DO NOTHING;
 
 INSERT INTO role_permissions(role_id, permission_id)

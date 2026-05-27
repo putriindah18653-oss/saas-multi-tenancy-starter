@@ -12,6 +12,7 @@ export type TenantPermission =
   | 'tenant.users.remove'
   | 'tenant.settings.read'
   | 'tenant.settings.update'
+  | 'tenant.audit.read'
   | 'tenant.billing.read'
   | 'tenant.billing.manage'
   | 'tenant.support.manage'
@@ -28,6 +29,7 @@ const tenantRolePermissions: Record<TenantRole, TenantPermission[]> = {
     'tenant.users.remove',
     'tenant.settings.read',
     'tenant.settings.update',
+    'tenant.audit.read',
     'tenant.billing.read',
     'tenant.billing.manage',
     'tenant.reports.read',
@@ -40,6 +42,7 @@ const tenantRolePermissions: Record<TenantRole, TenantPermission[]> = {
     'tenant.users.remove',
     'tenant.settings.read',
     'tenant.settings.update',
+    'tenant.audit.read',
     'tenant.billing.read',
     'tenant.billing.manage',
     'tenant.reports.read',
@@ -51,6 +54,7 @@ const tenantRolePermissions: Record<TenantRole, TenantPermission[]> = {
     'tenant.users.remove',
     'tenant.settings.read',
     'tenant.settings.update',
+    'tenant.audit.read',
     'tenant.reports.read',
   ],
   tenant_admin: [
@@ -60,6 +64,7 @@ const tenantRolePermissions: Record<TenantRole, TenantPermission[]> = {
     'tenant.users.remove',
     'tenant.settings.read',
     'tenant.settings.update',
+    'tenant.audit.read',
     'tenant.reports.read',
   ],
   manager: ['tenant.dashboard.read', 'tenant.reports.read'],

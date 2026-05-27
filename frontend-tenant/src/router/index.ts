@@ -4,6 +4,8 @@ import TenantLayout from '@/layouts/TenantLayout.vue'
 import LoginPage from '@/pages/auth/LoginPage.vue'
 import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
 import TenantUsersPage from '@/pages/tenant/users/TenantUsersPage.vue'
+import TenantSettingsPage from '@/pages/tenant/TenantSettingsPage.vue'
+import TenantAuditPage from '@/pages/tenant/TenantAuditPage.vue'
 import ForbiddenPage from '@/pages/errors/ForbiddenPage.vue'
 import TenantNotFoundPage from '@/pages/errors/TenantNotFoundPage.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -29,6 +31,8 @@ const routes = [
     children: [
       { path: '', name: 'tenant-home', component: TenantDashboard, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.dashboard.read' } },
       { path: 'users', name: 'tenant-users', component: TenantUsersPage, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.users.read' } },
+      { path: 'settings', name: 'tenant-settings', component: TenantSettingsPage, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.settings.read' } },
+      { path: 'audit', name: 'tenant-audit', component: TenantAuditPage, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.audit.read' } },
     ],
   },
 ]

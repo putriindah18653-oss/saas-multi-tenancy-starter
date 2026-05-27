@@ -4,14 +4,22 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/audit"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/common"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/response"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/middleware"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/user"
 )
 
-type TenantUserHandler struct{ svc *user.Service }
+type TenantUserHandler struct {
+	svc        *user.Service
+	audit      *audit.Service
+	trustProxy bool
+}
 
-func NewTenantUserHandler(s *user.Service) *TenantUserHandler { return &TenantUserHandler{svc: s} }
+func NewTenantUserHandler(s *user.Service, a *audit.Service, trustProxy bool) *TenantUserHandler {
+	return &TenantUserHandler{svc: s, audit: a, trustProxy: trustProxy}
+}
 
 type inviteReq struct {
 	Name  string `json:"name"`
@@ -59,6 +67,7 @@ func (h *TenantUserHandler) Invite(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, 400, "invite_failed", "could not invite user")
 		return
 	}
+	h.log(r, tc.TenantID, "tenant.user.invite", "user_tenant", m.ID)
 	data := map[string]any{"member": m}
 	if p != "" {
 		data["temporary_password"] = p
@@ -71,18 +80,29 @@ func (h *TenantUserHandler) ChangeRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tc, _ := middleware.TenantFromContext(r.Context())
-	m, err := h.svc.ChangeRole(r.Context(), tc.TenantID, chi.URLParam(r, "id"), req.Role)
+	id := chi.URLParam(r, "id")
+	m, err := h.svc.ChangeRole(r.Context(), tc.TenantID, id, req.Role)
 	if err != nil {
 		response.Error(w, r, 400, "role_update_failed", "could not update role")
 		return
 	}
+	h.log(r, tc.TenantID, "tenant.user.role_update", "user_tenant", id)
 	response.Success(w, r, 200, m)
 }
 func (h *TenantUserHandler) Remove(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
-	if err := h.svc.Remove(r.Context(), tc.TenantID, chi.URLParam(r, "id")); err != nil {
+	id := chi.URLParam(r, "id")
+	if err := h.svc.Remove(r.Context(), tc.TenantID, id); err != nil {
 		response.Error(w, r, 400, "remove_failed", "could not remove user")
 		return
 	}
+	h.log(r, tc.TenantID, "tenant.user.remove", "user_tenant", id)
 	response.Success(w, r, 200, map[string]any{"removed": true})
+}
+func (h *TenantUserHandler) log(r *http.Request, tenantID, action, typ, id string) {
+	if h.audit == nil {
+		return
+	}
+	ac, _ := middleware.AuthFromContext(r.Context())
+	_ = h.audit.Log(r.Context(), ac.UserID, tenantID, action, typ, id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
 }

@@ -124,8 +124,14 @@ Required env production:
 
 ## Next steps
 
-- Refresh token rotation + revoke list
-- Rate limiting per route/tenant
 - Observability metrics/tracing
 - E2E tests auth/tenant/user
 - CI lint/test/build + migration check
+
+## Security/features added after hardening
+
+- Refresh token persistence, rotation, session list, and revoke on logout/session revoke.
+- Change password revokes active refresh sessions and clears temporary-password requirement.
+- Redis-backed rate limit for login and refresh endpoints.
+- Tenant settings API/UI for display name, logo URL, timezone, locale, and currency.
+- Owner and tenant audit log API/UI for security/admin actions.

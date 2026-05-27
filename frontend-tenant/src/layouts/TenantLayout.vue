@@ -22,5 +22,7 @@ import TenantSwitcher from '@/components/navigation/TenantSwitcher.vue'
 const items = [
   { to: '/tenant', label: 'Dashboard' },
   { to: '/tenant/users', label: 'Users' },
+  { to: '/tenant/settings', label: 'Settings' },
+  { to: '/tenant/audit', label: 'Audit Log' },
 ]
 </script>

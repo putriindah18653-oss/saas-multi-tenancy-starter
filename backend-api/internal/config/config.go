@@ -18,7 +18,8 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env string `json:"env"`
+	Env        string `json:"env"`
+	TrustProxy bool   `json:"trust_proxy"`
 }
 type HTTPConfig struct {
 	Port string `json:"port"`
@@ -45,7 +46,7 @@ type CORSConfig struct {
 func Load() (*Config, error) {
 	port := env("APP_PORT", "8080")
 	cfg := &Config{
-		App:  AppConfig{Env: env("APP_ENV", "development")},
+		App:  AppConfig{Env: env("APP_ENV", "development"), TrustProxy: envBool("TRUST_PROXY", false)},
 		HTTP: HTTPConfig{Port: port, Addr: ":" + port},
 		Database: DatabaseConfig{
 			URL:      env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/saas_starter?sslmode=disable"),
@@ -97,6 +98,13 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+func envBool(key string, fallback bool) bool {
+	v := strings.ToLower(env(key, ""))
+	if v == "" {
+		return fallback
+	}
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 func envDuration(key string, fallback time.Duration) time.Duration {
 	v := env(key, "")
