@@ -36,7 +36,7 @@ Development ports:
 ```text
 backend/      Go API service, owned by backend implementation tasks
 frontend/     Vue application, owned by frontend implementation tasks
-migrations/   Backend migration files, under backend/migrations in later tasks
+backend/migrations/   SQL migrations executed by cmd/migrate or migrate container
 ```
 
 Task 01 only defines repository shell and contracts. Later tasks add source code without changing unrelated files.

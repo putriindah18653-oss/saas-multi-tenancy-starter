@@ -90,7 +90,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 3. Owner-app creates tenant:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/app/tenants/ \
+curl -X POST http://localhost:8080/api/v1/app/tenants \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"name":"Tenant Alpha","slug":"tenant-alpha"}'
