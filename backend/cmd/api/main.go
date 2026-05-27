@@ -18,6 +18,7 @@ import (
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/rbac"
 	apiredis "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/redis"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/tenant"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/user"
 )
 
 func main() {
@@ -44,7 +45,8 @@ func main() {
 	rbacSvc := rbac.NewService(db.Pool)
 	tenantSvc := tenant.NewService(db.Pool)
 	auditSvc := audit.NewService(db.Pool)
-	srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: apirouter.New(apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger}, apirouter.AuthRoutes(authSvc), apirouter.RBACRoutes(authSvc, rbacSvc), apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	userSvc := user.NewService(db.Pool)
+	srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: apirouter.New(apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger}, apirouter.AuthRoutes(authSvc), apirouter.RBACRoutes(authSvc, rbacSvc), apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc), apirouter.TenantUserRoutes(authSvc, rbacSvc, userSvc)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("api server listening", "addr", srv.Addr)
