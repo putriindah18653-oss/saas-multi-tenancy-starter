@@ -5,12 +5,30 @@
       <span class="text-xs text-slate-500">Tenant: {{ tenant.selectedMembership?.tenant_name || tenant.selectedTenantId || '-' }}</span>
     </div>
 
-    <p v-if="flash" class="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ flash }}</p>
+    <div v-if="flashMessage" class="space-y-2 rounded-md bg-emerald-50 px-3 py-3 text-sm text-emerald-800">
+      <p>{{ flashMessage }}</p>
+      <div v-if="tempPassword" class="rounded border border-emerald-200 bg-white px-3 py-2">
+        <p class="text-xs text-slate-600">Temporary password (show once):</p>
+        <div class="mt-1 flex flex-wrap items-center gap-2">
+          <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-900">{{ tempPassword }}</code>
+          <button class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700" @click="copyTempPassword">
+            {{ copied ? 'Copied' : 'Copy' }}
+          </button>
+          <button class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700" @click="dismissTempPassword">
+            Hide
+          </button>
+        </div>
+      </div>
+    </div>
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
     <UserInviteForm v-if="canManage" @invited="onInvited" />
 
-    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div v-if="!tenant.selectedTenantId" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+      Pilih tenant dulu dari switcher di kanan atas untuk mengelola user tenant.
+    </div>
+
+    <div v-if="tenant.selectedTenantId" class="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-600">
           <tr>
@@ -60,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useTenantStore } from '@/stores/tenant'
 import { tenantUsersService, type TenantMember } from '@/services/tenantUsers'
 import UserInviteForm from '@/components/tenant-users/UserInviteForm.vue'
@@ -69,7 +87,9 @@ const tenant = useTenantStore()
 const members = ref<TenantMember[]>([])
 const loading = ref(false)
 const error = ref('')
-const flash = ref('')
+const flashMessage = ref('')
+const tempPassword = ref('')
+const copied = ref(false)
 
 const canManage = computed(() => {
   const role = tenant.selectedMembership?.role
@@ -122,10 +142,39 @@ async function removeMember(id: string) {
   }
 }
 
-function onInvited(msg: string) {
-  flash.value = msg
+function onInvited(payload: { message: string; temporaryPassword: string }) {
+  flashMessage.value = payload.message
+  tempPassword.value = payload.temporaryPassword
+  copied.value = false
   load()
 }
+
+async function copyTempPassword() {
+  if (!tempPassword.value) return
+  try {
+    await navigator.clipboard.writeText(tempPassword.value)
+    copied.value = true
+  } catch {
+    copied.value = false
+  }
+}
+
+function dismissTempPassword() {
+  tempPassword.value = ''
+  copied.value = false
+}
+
+watch(
+  () => tenant.selectedTenantId,
+  () => {
+    members.value = []
+    error.value = ''
+    flashMessage.value = ''
+    tempPassword.value = ''
+    copied.value = false
+    load()
+  },
+)
 
 onMounted(load)
 </script>

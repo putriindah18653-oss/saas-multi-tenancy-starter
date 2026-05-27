@@ -117,6 +117,12 @@ curl -X POST http://localhost:8080/api/v1/tenant/users/invite \
 
 Frontend kirim `Authorization` dan `X-Tenant-ID` otomatis dari store tenant terpilih.
 
+## Frontend UX notes
+
+- Form auth sudah pakai `autocomplete` + placeholder aman (tanpa contoh token/secret nyata).
+- Saat invite user tenant, temporary password ditampilkan sekali di UI (dengan tombol copy/hide).
+- Hindari menyimpan temporary password di log, screenshot, atau ticket publik.
+
 ## Security notes
 
 - Ganti JWT secrets sebelum shared/prod.

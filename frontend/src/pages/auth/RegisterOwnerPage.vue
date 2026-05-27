@@ -1,20 +1,20 @@
 <template>
   <div>
     <h2 class="text-2xl font-semibold text-slate-900">Register Owner</h2>
-    <p class="mt-1 text-sm text-slate-600">Buat akun owner pertama untuk bootstrap aplikasi.</p>
+    <p class="mt-1 text-sm text-slate-600">Buat akun owner pertama untuk mulai setup aplikasi.</p>
 
     <form class="mt-6 space-y-4" @submit.prevent="submit">
       <div>
         <label class="mb-1 block text-sm text-slate-700">Full name</label>
-        <input v-model="form.full_name" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input v-model="form.full_name" autocomplete="name" placeholder="Jane Doe" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
       </div>
       <div>
         <label class="mb-1 block text-sm text-slate-700">Email</label>
-        <input v-model="form.email" type="email" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input v-model="form.email" type="email" autocomplete="email" placeholder="owner@company.com" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
       </div>
       <div>
         <label class="mb-1 block text-sm text-slate-700">Password</label>
-        <input v-model="form.password" type="password" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input v-model="form.password" type="password" autocomplete="new-password" placeholder="Min. 8 karakter" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
       </div>
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

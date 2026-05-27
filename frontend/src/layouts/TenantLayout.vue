@@ -16,6 +16,6 @@ import AppSidebar from '@/components/navigation/AppSidebar.vue'
 
 const items = [
   { to: '/tenant', label: 'Dashboard' },
-  { to: '/tenant/users', label: 'Users (Task 11)' },
+  { to: '/tenant/users', label: 'Users' },
 ]
 </script>

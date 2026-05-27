@@ -1,10 +1,11 @@
 <template>
   <form class="space-y-3 rounded-xl border border-slate-200 bg-white p-4" @submit.prevent="submit">
     <h3 class="font-semibold text-slate-900">Invite member</h3>
+    <p class="text-xs text-slate-500">Temporary password ditampilkan sekali. Simpan aman, lalu minta user ganti password setelah login.</p>
 
     <div class="grid gap-3 md:grid-cols-2">
-      <input v-model="form.name" required placeholder="Full name" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <input v-model="form.email" required type="email" placeholder="Email" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      <input v-model="form.name" required autocomplete="name" placeholder="Full name" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+      <input v-model="form.email" required type="email" autocomplete="email" placeholder="work@email.com" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
     </div>
 
     <select v-model="form.role" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
@@ -26,7 +27,7 @@
 import { reactive, ref } from 'vue'
 import { tenantUsersService } from '@/services/tenantUsers'
 
-const emit = defineEmits<{ invited: [msg: string] }>()
+const emit = defineEmits<{ invited: [payload: { message: string; temporaryPassword: string }] }>()
 const loading = ref(false)
 const error = ref('')
 const form = reactive({ name: '', email: '', role: 'support' })
@@ -37,7 +38,10 @@ async function submit() {
   try {
     const res = await tenantUsersService.invite({ ...form })
     const pwd = res.data.data.temporary_password
-    emit('invited', `User invited. Temporary password: ${pwd}`)
+    emit('invited', {
+      message: 'User invited successfully.',
+      temporaryPassword: pwd,
+    })
     form.name = ''
     form.email = ''
     form.role = 'support'

@@ -1,16 +1,16 @@
 <template>
   <div>
     <h2 class="text-2xl font-semibold text-slate-900">Login</h2>
-    <p class="mt-1 text-sm text-slate-600">Masuk ke akun untuk akses dashboard.</p>
+    <p class="mt-1 text-sm text-slate-600">Masuk untuk akses dashboard sesuai role Anda.</p>
 
     <form class="mt-6 space-y-4" @submit.prevent="submit">
       <div>
         <label class="mb-1 block text-sm text-slate-700">Email</label>
-        <input v-model="form.email" type="email" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input v-model="form.email" type="email" autocomplete="email" placeholder="you@company.com" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
       </div>
       <div>
         <label class="mb-1 block text-sm text-slate-700">Password</label>
-        <input v-model="form.password" type="password" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <input v-model="form.password" type="password" autocomplete="current-password" placeholder="••••••••" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
       </div>
 
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

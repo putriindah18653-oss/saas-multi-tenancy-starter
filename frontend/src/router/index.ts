@@ -11,6 +11,7 @@ import TenantDetail from '@/pages/app/TenantDetail.vue'
 import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
 import TenantUsersPage from '@/pages/tenant/users/TenantUsersPage.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useTenantStore } from '@/stores/tenant'
 
 const routes = [
   { path: '/', redirect: '/auth/login' },
@@ -51,6 +52,7 @@ export const router = createRouter({
 
 router.beforeEach((to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
   const auth = useAuthStore()
+  const tenant = useTenantStore()
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     next({ name: 'auth-login' })
@@ -59,6 +61,11 @@ router.beforeEach((to: RouteLocationNormalized, _from: RouteLocationNormalized, 
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
     next({ name: auth.defaultHomeRoute })
+    return
+  }
+
+  if (to.meta.scope === 'tenant' && !tenant.selectedTenantId && to.name !== 'tenant-home') {
+    next({ name: 'tenant-home' })
     return
   }
 
