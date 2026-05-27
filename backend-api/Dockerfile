@@ -11,5 +11,7 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY --from=builder /out/api /app/api
+RUN addgroup -S app && adduser -S app -G app && chown -R app:app /app
+USER app
 EXPOSE 8080
 ENTRYPOINT ["/app/api"]

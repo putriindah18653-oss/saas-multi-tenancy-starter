@@ -28,7 +28,12 @@ func RequireAuth(s *auth.Service) func(http.Handler) http.Handler {
 				response.Error(w, r, http.StatusUnauthorized, "unauthorized", "invalid token")
 				return
 			}
-			ac := auth.Context{UserID: c.UserID, Email: c.Email, AppRole: c.AppRole}
+			u, err := s.Me(r.Context(), c.UserID)
+			if err != nil || !u.IsActive {
+				response.Error(w, r, http.StatusUnauthorized, "unauthorized", "user inactive")
+				return
+			}
+			ac := auth.Context{UserID: u.ID, Email: u.Email, AppRole: u.AppRole}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authKey{}, ac)))
 		})
 	}

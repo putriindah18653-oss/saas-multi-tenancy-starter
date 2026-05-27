@@ -5,18 +5,20 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/audit"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/common"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/response"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/middleware"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/tenant"
 )
 
 type TenantHandler struct {
-	svc   *tenant.Service
-	audit *audit.Service
+	svc        *tenant.Service
+	audit      *audit.Service
+	trustProxy bool
 }
 
-func NewTenantHandler(s *tenant.Service, a *audit.Service) *TenantHandler {
-	return &TenantHandler{svc: s, audit: a}
+func NewTenantHandler(s *tenant.Service, a *audit.Service, trustProxy bool) *TenantHandler {
+	return &TenantHandler{svc: s, audit: a, trustProxy: trustProxy}
 }
 
 type tenantReq struct {
@@ -80,5 +82,5 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 func (h *TenantHandler) log(r *http.Request, action, id string) {
 	ac, _ := middleware.AuthFromContext(r.Context())
-	_ = h.audit.Log(r.Context(), ac.UserID, "", action, "tenant", id, map[string]any{}, r.RemoteAddr, r.UserAgent())
+	_ = h.audit.Log(r.Context(), ac.UserID, "", action, "tenant", id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
 }

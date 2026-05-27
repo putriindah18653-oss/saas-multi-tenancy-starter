@@ -10,9 +10,9 @@ import (
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/tenant"
 )
 
-func AppTenantRoutes(a *auth.Service, rsvc *rbac.Service, ts *tenant.Service, as *audit.Service) DomainRegistrar {
+func AppTenantRoutes(a *auth.Service, rsvc *rbac.Service, ts *tenant.Service, as *audit.Service, trustProxy bool) DomainRegistrar {
 	return func(r chi.Router) {
-		h := handler.NewTenantHandler(ts, as)
+		h := handler.NewTenantHandler(ts, as, trustProxy)
 		r.Route("/app/tenants", func(tr chi.Router) {
 			tr.Use(middleware.RequireAuth(a))
 			tr.Use(middleware.RequirePasswordChanged(a))

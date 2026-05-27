@@ -20,9 +20,9 @@ func TenantUserRoutes(a *auth.Service, rsvc *rbac.Service, us *user.Service, as 
 			tr.With(middleware.RequirePermission(rsvc, "tenant.dashboard.read")).Get("/dashboard", h.Dashboard)
 			tr.Get("/me", h.Me)
 			tr.With(middleware.RequirePermission(rsvc, "tenant.users.read")).Get("/users", h.List)
-			tr.With(middleware.RequireTenantRole("owner-tenant"), middleware.RequirePermission(rsvc, "tenant.users.invite")).Post("/users/invite", h.Invite)
-			tr.With(middleware.RequireTenantRole("owner-tenant"), middleware.RequirePermission(rsvc, "tenant.users.update")).Patch("/users/{id}/role", h.ChangeRole)
-			tr.With(middleware.RequireTenantRole("owner-tenant"), middleware.RequirePermission(rsvc, "tenant.users.remove")).Delete("/users/{id}", h.Remove)
+			tr.With(middleware.RequirePermission(rsvc, "tenant.users.invite")).Post("/users/invite", h.Invite)
+			tr.With(middleware.RequirePermission(rsvc, "tenant.users.update")).Patch("/users/{id}/role", h.ChangeRole)
+			tr.With(middleware.RequirePermission(rsvc, "tenant.users.remove")).Delete("/users/{id}", h.Remove)
 		})
 	}
 }

@@ -92,7 +92,7 @@ const flashMessage = ref('')
 const tempPassword = ref('')
 const copied = ref(false)
 
-const canInvite = computed(() => tenant.selectedMembership?.role === 'owner-tenant' && canTenant(tenant.selectedMembership, 'tenant.users.invite'))
+const canInvite = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.invite'))
 const canUpdate = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.update'))
 const canRemove = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.remove'))
 const canManage = computed(() => canInvite.value || canUpdate.value || canRemove.value)

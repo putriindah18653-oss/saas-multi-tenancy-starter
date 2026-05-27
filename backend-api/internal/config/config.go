@@ -76,6 +76,16 @@ func (c *Config) Validate() error {
 	if c.JWT.RefreshSecret == "" {
 		return fmt.Errorf("JWT_REFRESH_SECRET is required")
 	}
+	if !c.IsDevelopment() {
+		for _, origin := range c.CORS.AllowedOrigins {
+			if origin == "*" {
+				return fmt.Errorf("CORS wildcard is not allowed outside development")
+			}
+		}
+		if strings.Contains(c.JWT.AccessSecret, "change-me") || strings.Contains(c.JWT.RefreshSecret, "change-me") {
+			return fmt.Errorf("default JWT secrets are not allowed outside development")
+		}
+	}
 	return nil
 }
 

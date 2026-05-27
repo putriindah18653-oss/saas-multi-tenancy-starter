@@ -6,7 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
@@ -99,11 +101,14 @@ func (s *Service) Me(ctx context.Context, userID string) (*UserProfile, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !u.IsActive {
+		return nil, errors.New("user inactive")
+	}
 	u.Tenants, _ = s.Memberships(ctx, u.ID)
 	return &u, nil
 }
 func (s *Service) Memberships(ctx context.Context, userID string) ([]TenantMembership, error) {
-	rows, err := s.db.Query(ctx, "SELECT ut.id,t.id,t.name,t.slug,ut.role,ut.is_active FROM user_tenants ut JOIN tenants t ON t.id=ut.tenant_id WHERE ut.user_id=$1 ORDER BY t.name", userID)
+	rows, err := s.db.Query(ctx, "SELECT ut.id,t.id,t.name,t.slug,ut.role,ut.is_active FROM user_tenants ut JOIN tenants t ON t.id=ut.tenant_id WHERE ut.user_id=$1 AND ut.is_active=true AND t.status='active' ORDER BY t.name", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -263,8 +268,8 @@ func (s *Service) RevokeSession(ctx context.Context, userID, sessionID string) e
 	return nil
 }
 func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
-	if len(newPassword) < 8 {
-		return errors.New("password too short")
+	if err := validatePassword(newPassword); err != nil {
+		return err
 	}
 	var hash string
 	if err := s.db.QueryRow(ctx, "SELECT password_hash FROM users WHERE id=$1", userID).Scan(&hash); err != nil {
@@ -272,6 +277,9 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	}
 	if err := VerifyPassword(hash, currentPassword); err != nil {
 		return errors.New("invalid current password")
+	}
+	if err := VerifyPassword(hash, newPassword); err == nil {
+		return errors.New("new password must be different")
 	}
 	nh, err := HashPassword(newPassword)
 	if err != nil {
@@ -285,3 +293,33 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	return nil
 }
 func IsNoRows(err error) bool { return errors.Is(err, pgx.ErrNoRows) }
+
+func validatePassword(password string) error {
+	if len(password) < 12 {
+		return errors.New("password must be at least 12 characters")
+	}
+	lower := strings.ToLower(password)
+	weak := []string{"password", "qwerty", "123456", "admin", "letmein"}
+	for _, token := range weak {
+		if strings.Contains(lower, token) {
+			return errors.New("password is too common")
+		}
+	}
+	var hasLower, hasUpper, hasDigit, hasSymbol bool
+	for _, r := range password {
+		switch {
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			hasSymbol = true
+		}
+	}
+	if !hasLower || !hasUpper || !hasDigit || !hasSymbol {
+		return errors.New("password must include lowercase, uppercase, number, and symbol")
+	}
+	return nil
+}

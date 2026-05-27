@@ -24,6 +24,10 @@ function attachUnauthorizedHandler(instance: AxiosInstance) {
         const auth = useAuthStore()
         auth.clearSession()
       }
+      if (status === 403 && (error.response?.data as any)?.error?.code === 'password_change_required') {
+        const auth = useAuthStore()
+        auth.clearSession()
+      }
       return Promise.reject(error)
     },
   )

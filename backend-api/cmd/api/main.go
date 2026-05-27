@@ -52,7 +52,7 @@ func main() {
 			apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger},
 			apirouter.AuthRoutes(authSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy),
 			apirouter.RBACRoutes(authSvc, rbacSvc),
-			apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc),
+			apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
 			apirouter.TenantUserRoutes(authSvc, rbacSvc, userSvc, auditSvc, cfg.App.TrustProxy),
 			apirouter.TenantSettingsRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
 			apirouter.AuditRoutes(authSvc, rbacSvc, auditSvc),

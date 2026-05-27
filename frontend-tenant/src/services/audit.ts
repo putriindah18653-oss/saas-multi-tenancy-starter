@@ -1,4 +1,4 @@
-import { authApi, tenantApi } from '@/services/api'
+import { tenantApi } from '@/services/api'
 
 export type AuditEntry = {
   id: string
@@ -18,8 +18,5 @@ type Envelope<T> = { success: boolean; data: T }
 export const auditService = {
   tenant(limit = 100) {
     return tenantApi.get<Envelope<AuditEntry[]>>(`/tenant/audit?limit=${limit}`)
-  },
-  app(limit = 100) {
-    return authApi.get<Envelope<AuditEntry[]>>(`/app/audit?limit=${limit}`)
   },
 }

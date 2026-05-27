@@ -40,6 +40,12 @@ function attachUnauthorizedHandler(instance: AxiosInstance) {
         auth.clearSession()
         tenant.clearTenant()
       }
+      if (status === 403 && (error.response?.data as any)?.error?.code === 'password_change_required') {
+        const auth = useAuthStore()
+        const tenant = useTenantStore()
+        auth.clearSession()
+        tenant.clearTenant()
+      }
       return Promise.reject(error)
     },
   )
