@@ -1,0 +1,47 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Logs
+*.log
+logs/
+
+# Go
+bin/
+coverage.out
+*.test
+backend/tmp/
+backend/.air.toml
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docker / volumes
+.docker/
+postgres-data/
+redis-data/
+
+# Build artifacts
+dist/
+build/
+.cache/
+.tmp/
