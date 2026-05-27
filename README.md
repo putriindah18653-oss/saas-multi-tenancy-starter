@@ -1,80 +1,139 @@
 # SaaS Multi-Tenancy Starter
 
-Starter kit monorepo untuk membangun aplikasi SaaS multi-tenant seperti POS, CRM, HRM, inventory, billing, dan produk SaaS lain.
+Starter monorepo untuk aplikasi SaaS multi-tenant dengan isolasi data tenant pada shared database.
 
 ## Stack
 
-- Backend: Go
+- Backend: Go (chi, pgxpool)
 - Database: PostgreSQL
-- Cache/session/rate limit: Redis
-- Frontend: Vue 3 + Vite + TypeScript + Tailwind CSS
-- Deployment: Docker Compose
+- Cache: Redis
+- Frontend: Vue 3 + Vite + TypeScript + Tailwind + Pinia
+- Deploy: Docker Compose
 
-## Repository layout
-
-```text
-.
-├── backend/
-│   └── .env.example
-├── frontend/
-│   └── .env.example
-├── docker-compose.yml
-├── docker-compose.prod.yml
-├── .env.example
-├── IDEA.md
-├── AGENT_TASKS.md
-├── PROJECT.md
-└── README.md
-```
-
-Backend and frontend implementation files are owned by later tasks in `AGENT_TASKS.md`. Task 01 only creates shell, env contracts, Docker contracts, and base docs.
-
-## Development quick start
-
-1. Copy env file:
+## Quick start (development)
 
 ```bash
 cp .env.example .env
-```
-
-2. Update secrets before shared use:
-
-```bash
-JWT_ACCESS_SECRET=change-me-access-secret
-JWT_REFRESH_SECRET=change-me-refresh-secret
-```
-
-3. Validate compose:
-
-```bash
 docker compose config
+docker compose up -d postgres redis
 ```
 
-4. Start services after backend/frontend implementation exists:
+Jalankan migration:
+
+```bash
+docker run --rm \
+  --network saas-multi-tenancy-starter_app_net \
+  -v "$PWD/backend/migrations:/migrations" \
+  migrate/migrate:v4.17.1 \
+  -path=/migrations \
+  -database "postgres://postgres:postgres@postgres:5432/saas_starter?sslmode=disable" \
+  up
+```
+
+Jalankan app:
 
 ```bash
 docker compose up --build
 ```
 
-Development ports:
+Port:
 
-- Backend: `http://localhost:8080`
-- Frontend: `http://localhost:5173`
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
+- Backend: http://localhost:8080
+- Frontend: http://localhost:5173
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
 
-## Production-oriented compose
+## Migration
 
-`docker-compose.prod.yml` expects built images or image tags:
+Up:
+
+```bash
+docker run --rm \
+  --network saas-multi-tenancy-starter_app_net \
+  -v "$PWD/backend/migrations:/migrations" \
+  migrate/migrate:v4.17.1 \
+  -path=/migrations \
+  -database "postgres://postgres:postgres@postgres:5432/saas_starter?sslmode=disable" \
+  up
+```
+
+Down 1 step:
+
+```bash
+docker run --rm \
+  --network saas-multi-tenancy-starter_app_net \
+  -v "$PWD/backend/migrations:/migrations" \
+  migrate/migrate:v4.17.1 \
+  -path=/migrations \
+  -database "postgres://postgres:postgres@postgres:5432/saas_starter?sslmode=disable" \
+  down 1
+```
+
+## Onboarding flow
+
+1. Create first owner-app:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/register-owner \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Owner App","email":"owner@app.local","password":"StrongPass123!"}'
+```
+
+2. Login:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"owner@app.local","password":"StrongPass123!"}'
+```
+
+3. Owner-app creates tenant:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/app/tenants/ \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Tenant Alpha","slug":"tenant-alpha"}'
+```
+
+4. Owner-tenant invites admin tenant:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/tenant/users/invite \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "X-Tenant-ID: <TENANT_ID>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Tenant Admin","email":"admin@tenant.local","role":"admin"}'
+```
+
+## Frontend routes
+
+- `/auth/register-owner`
+- `/auth/login`
+- `/app`
+- `/app/tenants`
+- `/tenant`
+- `/tenant/users`
+
+Frontend kirim `Authorization` dan `X-Tenant-ID` otomatis dari store tenant terpilih.
+
+## Security notes
+
+- Ganti JWT secrets sebelum shared/prod.
+- Jangan log password/token/secret.
+- Query tenant wajib filter `tenant_id`.
+- `X-Tenant-ID` wajib divalidasi ke membership user.
+- Gunakan HTTPS pada production.
+
+## Production
 
 ```bash
 cp .env.example .env
-# edit .env: strong secrets, production DATABASE_URL, CORS_ALLOWED_ORIGINS, image tags
 docker compose -f docker-compose.prod.yml config
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Required production values:
+Required env production:
 
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
@@ -82,64 +141,10 @@ Required production values:
 - `JWT_REFRESH_SECRET`
 - `CORS_ALLOWED_ORIGINS`
 
-## Environment contract
+## Next steps
 
-Backend requires:
-
-```text
-APP_ENV
-APP_PORT
-DATABASE_URL
-REDIS_ADDR
-JWT_ACCESS_SECRET
-JWT_REFRESH_SECRET
-JWT_ACCESS_TTL_MINUTES
-JWT_REFRESH_TTL_HOURS
-CORS_ALLOWED_ORIGINS
-```
-
-Frontend requires:
-
-```text
-VITE_API_BASE_URL
-VITE_TENANT_HEADER
-```
-
-## Multi-tenancy contract
-
-This project uses shared database multi-tenancy with `tenant_id` on tenant-scoped tables.
-
-Rules:
-
-- Every tenant-owned row must include `tenant_id`.
-- Every tenant-scoped query must filter by `tenant_id`.
-- Development tenant context uses `X-Tenant-ID`.
-- Code should remain ready for future subdomain tenant resolution.
-- Never log passwords, access tokens, refresh tokens, or secrets.
-
-## Planned API base path
-
-```text
-/api/v1
-```
-
-Health endpoints from backend foundation task:
-
-```text
-GET /health
-GET /ready
-```
-
-## Task execution
-
-See `AGENT_TASKS.md` for non-overlap agent tasks and file ownership. Suggested first waves:
-
-1. Task 01 — Monorepo, Docker, env, base documentation
-2. Task 02 — Backend foundation
-3. Task 03 — Database migrations/seed
-
-Do not let agents edit files outside assigned ownership.
-
-## Current status
-
-Task 01 defines shell and contracts only. Backend, database migrations, auth, RBAC, tenant management, and frontend app are implemented in later tasks.
+- Refresh token rotation + revoke list
+- Rate limiting per route/tenant
+- Observability (metrics, tracing)
+- E2E tests auth/tenant/user
+- CI lint/test/build + migration check

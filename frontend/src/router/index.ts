@@ -9,6 +9,7 @@ import TenantList from '@/pages/app/TenantList.vue'
 import TenantCreate from '@/pages/app/TenantCreate.vue'
 import TenantDetail from '@/pages/app/TenantDetail.vue'
 import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
+import TenantUsersPage from '@/pages/tenant/users/TenantUsersPage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -36,7 +37,10 @@ const routes = [
     path: '/tenant',
     component: TenantLayout,
     meta: { requiresAuth: true, scope: 'tenant' },
-    children: [{ path: '', name: 'tenant-home', component: TenantDashboard }],
+    children: [
+      { path: '', name: 'tenant-home', component: TenantDashboard },
+      { path: 'users', name: 'tenant-users', component: TenantUsersPage },
+    ],
   },
 ]
 
