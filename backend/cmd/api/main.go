@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/auth"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/config"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/database"
 	apirouter "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend/internal/http/router"
@@ -36,7 +37,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() { _ = redisClient.Close() }()
-	srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: apirouter.New(apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger}), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	authSvc := auth.NewService(db.Pool, cfg.JWT)
+	srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: apirouter.New(apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger}, apirouter.AuthRoutes(authSvc)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	errCh := make(chan error, 1)
 	go func() {
 		logger.Info("api server listening", "addr", srv.Addr)
