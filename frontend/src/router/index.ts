@@ -5,6 +5,9 @@ import TenantLayout from '@/layouts/TenantLayout.vue'
 import LoginPage from '@/pages/auth/LoginPage.vue'
 import RegisterOwnerPage from '@/pages/auth/RegisterOwnerPage.vue'
 import AppDashboard from '@/pages/app/AppDashboard.vue'
+import TenantList from '@/pages/app/TenantList.vue'
+import TenantCreate from '@/pages/app/TenantCreate.vue'
+import TenantDetail from '@/pages/app/TenantDetail.vue'
 import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -22,7 +25,12 @@ const routes = [
     path: '/app',
     component: AppAdminLayout,
     meta: { requiresAuth: true, scope: 'app' },
-    children: [{ path: '', name: 'app-home', component: AppDashboard }],
+    children: [
+      { path: '', name: 'app-home', component: AppDashboard },
+      { path: 'tenants', name: 'app-tenant-list', component: TenantList },
+      { path: 'tenants/create', name: 'app-tenant-create', component: TenantCreate },
+      { path: 'tenants/:id', name: 'app-tenant-detail', component: TenantDetail },
+    ],
   },
   {
     path: '/tenant',
