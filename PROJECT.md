@@ -31,15 +31,21 @@ Development ports:
 - PostgreSQL: `5432`
 - Redis: `6379`
 
-## Monorepo layout
+## Repository layout
 
 ```text
-backend/      Go API service, owned by backend implementation tasks
-frontend/     Vue application, owned by frontend implementation tasks
-backend/migrations/   SQL migrations executed by cmd/migrate or migrate container
+backend-api/      Go API service (auth, RBAC, tenant/app routes, migrations)
+frontend-owner/   Vue app for owner-app platform surface
+frontend-tenant/  Vue app for tenant workspace surface
 ```
 
-Task 01 only defines repository shell and contracts. Later tasks add source code without changing unrelated files.
+Both frontend apps share foundational Phase 1 patterns (auth store, API client, RBAC-aware navigation) while preserving separate root folders and independent app boundaries.
+
+Database migrations live at:
+
+```text
+backend-api/migrations/
+```
 
 ## Stack decisions
 

@@ -54,7 +54,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./backend:/app
+      - ./backend-api:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,18 +63,36 @@ services:
     networks:
       - app_net
 
-  frontend:
+  frontend-owner:
     image: node:22-alpine
-    container_name: saas_starter_frontend
+    container_name: saas_starter_frontend_owner
     working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
+      - ./frontend-owner:/app
+      - frontend_owner_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app_net
+
+  frontend-tenant:
+    image: node:22-alpine
+    container_name: saas_starter_frontend_tenant
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5174"
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
+      VITE_TENANT_HEADER: ${VITE_TENANT_HEADER:-X-Tenant-ID}
+    ports:
+      - "5174:5174"
+    volumes:
+      - ./frontend-tenant:/app
+      - frontend_tenant_node_modules:/app/node_modules
     depends_on:
       - backend
     networks:
@@ -83,7 +101,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  frontend_node_modules:
+  frontend_owner_node_modules:
+  frontend_tenant_node_modules:
 
 networks:
   app_net:

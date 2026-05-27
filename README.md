@@ -7,10 +7,11 @@ Starter monorepo untuk aplikasi SaaS multi-tenant dengan isolasi data tenant pad
 - Backend: Go (chi, pgxpool)
 - Database: PostgreSQL
 - Cache: Redis
-- Frontend: Vue 3 + Vite + TypeScript + Tailwind + Pinia
+- Frontend owner: Vue 3 + Vite + TypeScript + Tailwind + Pinia
+- Frontend tenant: Vue 3 + Vite + TypeScript + Tailwind + Pinia
 - Deploy: Docker Compose
 
-## Quick start (development)
+## Quick start development
 
 ```bash
 cp .env.example .env
@@ -18,19 +19,7 @@ docker compose config
 docker compose up -d postgres redis
 ```
 
-Jalankan migration:
-
-```bash
-docker run --rm \
-  --network saas-multi-tenancy-starter_app_net \
-  -v "$PWD/backend/migrations:/migrations" \
-  migrate/migrate:v4.17.1 \
-  -path=/migrations \
-  -database "postgres://postgres:postgres@postgres:5432/saas_starter?sslmode=disable" \
-  up
-```
-
-Jalankan app:
+Run migration dari `backend-api/migrations`, lalu jalankan app:
 
 ```bash
 docker compose up --build
@@ -39,93 +28,79 @@ docker compose up --build
 Port:
 
 - Backend: http://localhost:8080
-- Frontend: http://localhost:5173
+- Owner frontend: http://localhost:5173
+- Tenant frontend: http://localhost:5174
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
 
-## Migration
-
-Up:
-
-```bash
-docker run --rm \
-  --network saas-multi-tenancy-starter_app_net \
-  -v "$PWD/backend/migrations:/migrations" \
-  migrate/migrate:v4.17.1 \
-  -path=/migrations \
-  -database "postgres://postgres:postgres@postgres:5432/saas_starter?sslmode=disable" \
-  up
-```
-
-Down 1 step:
-
-```bash
-docker run --rm \
-  --network saas-multi-tenancy-starter_app_net \
-  -v "$PWD/backend/migrations:/migrations" \
-  migrate/migrate:v4.17.1 \
-  -path=/migrations \
-  -database "postgres://postgres:postgres@postgres:5432/saas_starter?sslmode=disable" \
-  down 1
-```
-
 ## Onboarding flow
 
-1. Create first owner-app:
+1. Run migrations. Migration hard-seed satu owner-app untuk local/demo:
 
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/register-owner \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Owner App","email":"owner@app.local","password":"StrongPass123!"}'
+- Email: `owner@app.local`
+- Password: `DemoPass123!`
+
+Rotate password ini sebelum shared/prod.
+
+2. Login ke endpoint:
+
+```text
+POST /api/v1/auth/login
+Content-Type: application/json
+Body: {"email":"owner@app.local","password":"DemoPass123!"}
 ```
 
-2. Login:
+Simpan `data.access_token`. Response login pakai field snake_case seperti `app_role` dan `tenant_memberships`.
 
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"owner@app.local","password":"StrongPass123!"}'
+3. Owner-app buat tenant:
+
+```text
+POST /api/v1/app/tenants
+Authorization: Bearer <TOKEN>
+Content-Type: application/json
+Body: {"name":"Tenant Alpha","slug":"tenant-alpha"}
 ```
 
-3. Owner-app creates tenant:
+Creator otomatis menjadi `owner-tenant` di tenant baru.
 
-```bash
-curl -X POST http://localhost:8080/api/v1/app/tenants \
-  -H "Authorization: Bearer <ACCESS_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Tenant Alpha","slug":"tenant-alpha"}'
+4. Owner-tenant invite admin tenant:
+
+```text
+POST /api/v1/tenant/users/invite
+Authorization: Bearer <TOKEN>
+X-Tenant-ID: <TENANT_ID>
+Content-Type: application/json
+Body: {"name":"Tenant Admin","email":"admin@tenant.local","role":"admin"}
 ```
 
-4. Owner-tenant invites admin tenant:
-
-```bash
-curl -X POST http://localhost:8080/api/v1/tenant/users/invite \
-  -H "Authorization: Bearer <ACCESS_TOKEN>" \
-  -H "X-Tenant-ID: <TENANT_ID>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Tenant Admin","email":"admin@tenant.local","role":"admin"}'
-```
+Untuk user baru, response invite menyertakan `temporary_password`. Untuk email yang sudah ada, user hanya ditautkan/diaktifkan ke tenant dan `temporary_password` tidak dikirim.
 
 ## Frontend routes
 
-- `/auth/register-owner`
+Owner frontend:
+
 - `/auth/login`
 - `/app`
 - `/app/tenants`
+
+Tenant frontend:
+
+- `/auth/login`
 - `/tenant`
 - `/tenant/users`
 
-Frontend kirim `Authorization` dan `X-Tenant-ID` otomatis dari store tenant terpilih.
+Tenant frontend mengirim `Authorization` dan `X-Tenant-ID` otomatis dari selected tenant store.
 
 ## Frontend UX notes
 
-- Form auth sudah pakai `autocomplete` + placeholder aman (tanpa contoh token/secret nyata).
-- Saat invite user tenant, temporary password ditampilkan sekali di UI (dengan tombol copy/hide).
+- Form auth sudah pakai `autocomplete` + placeholder aman.
+- Saat invite user tenant, temporary password ditampilkan sekali di UI jika backend membuat user baru.
 - Hindari menyimpan temporary password di log, screenshot, atau ticket publik.
 
 ## Security notes
 
-- Ganti JWT secrets sebelum shared/prod.
+- Set `JWT_ACCESS_SECRET` dan `JWT_REFRESH_SECRET`; backend menolak start/token jika secret kosong.
+- Ganti/rotate password seeded owner sebelum shared/prod.
 - Jangan log password/token/secret.
 - Query tenant wajib filter `tenant_id`.
 - `X-Tenant-ID` wajib divalidasi ke membership user.
@@ -151,6 +126,6 @@ Required env production:
 
 - Refresh token rotation + revoke list
 - Rate limiting per route/tenant
-- Observability (metrics, tracing)
+- Observability metrics/tracing
 - E2E tests auth/tenant/user
 - CI lint/test/build + migration check
