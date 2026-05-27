@@ -1,16 +1,35 @@
 import { createRouter, createWebHistory, type NavigationGuardNext, type RouteLocationNormalized } from 'vue-router'
+import AuthLayout from '@/layouts/AuthLayout.vue'
+import AppAdminLayout from '@/layouts/AppAdminLayout.vue'
+import TenantLayout from '@/layouts/TenantLayout.vue'
+import LoginPage from '@/pages/auth/LoginPage.vue'
+import RegisterOwnerPage from '@/pages/auth/RegisterOwnerPage.vue'
+import AppDashboard from '@/pages/app/AppDashboard.vue'
+import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
 import { useAuthStore } from '@/stores/auth'
-
-const PlaceholderPublic = { template: '<div class="min-h-screen grid place-items-center text-slate-600">Auth pages siap di Task 09</div>' }
-const PlaceholderApp = { template: '<div class="min-h-screen grid place-items-center text-slate-600">App admin pages siap di Task 09/10</div>' }
-const PlaceholderTenant = { template: '<div class="min-h-screen grid place-items-center text-slate-600">Tenant pages siap di Task 09/11</div>' }
 
 const routes = [
   { path: '/', redirect: '/auth/login' },
-  { path: '/auth/login', name: 'auth-login', component: PlaceholderPublic, meta: { guestOnly: true } },
-  { path: '/auth/register-owner', name: 'auth-register-owner', component: PlaceholderPublic, meta: { guestOnly: true } },
-  { path: '/app', name: 'app-home', component: PlaceholderApp, meta: { requiresAuth: true, scope: 'app' } },
-  { path: '/tenant', name: 'tenant-home', component: PlaceholderTenant, meta: { requiresAuth: true, scope: 'tenant' } },
+  {
+    path: '/auth',
+    component: AuthLayout,
+    children: [
+      { path: 'login', name: 'auth-login', component: LoginPage, meta: { guestOnly: true } },
+      { path: 'register-owner', name: 'auth-register-owner', component: RegisterOwnerPage, meta: { guestOnly: true } },
+    ],
+  },
+  {
+    path: '/app',
+    component: AppAdminLayout,
+    meta: { requiresAuth: true, scope: 'app' },
+    children: [{ path: '', name: 'app-home', component: AppDashboard }],
+  },
+  {
+    path: '/tenant',
+    component: TenantLayout,
+    meta: { requiresAuth: true, scope: 'tenant' },
+    children: [{ path: '', name: 'tenant-home', component: TenantDashboard }],
+  },
 ]
 
 export const router = createRouter({
