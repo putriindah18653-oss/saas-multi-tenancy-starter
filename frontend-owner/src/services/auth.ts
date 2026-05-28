@@ -2,6 +2,13 @@ import { authApi } from '@/services/api'
 import type { UserProfile } from '@/stores/auth'
 
 type LoginPayload = { email: string; password: string }
+export type UpdateProfilePayload = {
+  name: string
+  phone?: string
+  address?: string
+  avatar_url?: string
+  bio?: string
+}
 
 type AuthResponse = {
   data: {
@@ -26,6 +33,17 @@ export const authService = {
   },
   me() {
     return authApi.get<{ data: UserProfile }>('/me')
+  },
+  updateProfile(payload: UpdateProfilePayload) {
+    return authApi.patch<{ data: UserProfile }>('/me/profile', payload)
+  },
+  uploadAvatar(file: File) {
+    const form = new FormData()
+    form.append('image', file)
+    return authApi.post<{ data: { filename: string; url_path: string } }>('/me/uploads/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    })
   },
   permissions() {
     return authApi.get<{ data: { app_permissions: string[] } }>('/me/permissions')

@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	apiredis "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/redis"
-	apirouter "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/router"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/audit"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/auth"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/config"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
+	apirouter "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/router"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/rbac"
+	apiredis "github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/redis"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/tenant"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/user"
 )
@@ -53,6 +53,8 @@ func main() {
 			apirouter.AuthRoutes(authSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy),
 			apirouter.RBACRoutes(authSvc, rbacSvc),
 			apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
+			apirouter.AppSettingsRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
+			apirouter.UploadRoutes(authSvc, rbacSvc, redisClient.Client, cfg.App.TrustProxy),
 			apirouter.TenantUserRoutes(authSvc, rbacSvc, userSvc, auditSvc, cfg.App.TrustProxy),
 			apirouter.TenantSettingsRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
 			apirouter.AuditRoutes(authSvc, rbacSvc, auditSvc),

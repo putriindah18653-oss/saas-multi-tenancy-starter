@@ -35,6 +35,10 @@ type UserProfile struct {
 	ID                 string             `json:"id"`
 	Name               string             `json:"name"`
 	Email              string             `json:"email"`
+	Phone              string             `json:"phone"`
+	Address            string             `json:"address"`
+	AvatarURL          string             `json:"avatar_url"`
+	Bio                string             `json:"bio"`
 	AppRole            string             `json:"app_role"`
 	IsActive           bool               `json:"is_active"`
 	MustChangePassword bool               `json:"must_change_password"`
@@ -81,7 +85,7 @@ func tokenHash(token string) string {
 func (s *Service) Login(ctx context.Context, email, password, ip, ua string) (*UserProfile, string, string, error) {
 	var hash string
 	u := UserProfile{}
-	err := s.db.QueryRow(ctx, "SELECT id,name,email,password_hash,COALESCE(app_role,''),is_active,must_change_password FROM users WHERE email=$1", email).Scan(&u.ID, &u.Name, &u.Email, &hash, &u.AppRole, &u.IsActive, &u.MustChangePassword)
+	err := s.db.QueryRow(ctx, "SELECT id,name,email,password_hash,COALESCE(phone,''),COALESCE(address,''),COALESCE(avatar_url,''),COALESCE(bio,''),COALESCE(app_role,''),is_active,must_change_password FROM users WHERE email=$1", email).Scan(&u.ID, &u.Name, &u.Email, &hash, &u.Phone, &u.Address, &u.AvatarURL, &u.Bio, &u.AppRole, &u.IsActive, &u.MustChangePassword)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -97,7 +101,7 @@ func (s *Service) Login(ctx context.Context, email, password, ip, ua string) (*U
 }
 func (s *Service) Me(ctx context.Context, userID string) (*UserProfile, error) {
 	u := UserProfile{}
-	err := s.db.QueryRow(ctx, "SELECT id,name,email,COALESCE(app_role,''),is_active,must_change_password FROM users WHERE id=$1", userID).Scan(&u.ID, &u.Name, &u.Email, &u.AppRole, &u.IsActive, &u.MustChangePassword)
+	err := s.db.QueryRow(ctx, "SELECT id,name,email,COALESCE(phone,''),COALESCE(address,''),COALESCE(avatar_url,''),COALESCE(bio,''),COALESCE(app_role,''),is_active,must_change_password FROM users WHERE id=$1", userID).Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.Address, &u.AvatarURL, &u.Bio, &u.AppRole, &u.IsActive, &u.MustChangePassword)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +110,41 @@ func (s *Service) Me(ctx context.Context, userID string) (*UserProfile, error) {
 	}
 	u.Tenants, _ = s.Memberships(ctx, u.ID)
 	return &u, nil
+}
+func (s *Service) UpdateProfile(ctx context.Context, userID, name, phone, address, avatarURL, bio string) (*UserProfile, error) {
+	name = strings.TrimSpace(name)
+	phone = strings.TrimSpace(phone)
+	address = strings.TrimSpace(address)
+	avatarURL = strings.TrimSpace(avatarURL)
+	bio = strings.TrimSpace(bio)
+
+	if name == "" {
+		return nil, errors.New("name required")
+	}
+	if len([]rune(name)) > 120 {
+		return nil, errors.New("name too long")
+	}
+	if len([]rune(phone)) > 40 {
+		return nil, errors.New("phone too long")
+	}
+	if len([]rune(address)) > 500 {
+		return nil, errors.New("address too long")
+	}
+	if len([]rune(avatarURL)) > 500 {
+		return nil, errors.New("avatar url too long")
+	}
+	if len([]rune(bio)) > 500 {
+		return nil, errors.New("bio too long")
+	}
+
+	tag, err := s.db.Exec(ctx, "UPDATE users SET name=$2,phone=$3,address=$4,avatar_url=$5,bio=$6,updated_at=now() WHERE id=$1", userID, name, phone, address, avatarURL, bio)
+	if err != nil {
+		return nil, err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, pgx.ErrNoRows
+	}
+	return s.Me(ctx, userID)
 }
 func (s *Service) Memberships(ctx context.Context, userID string) ([]TenantMembership, error) {
 	rows, err := s.db.Query(ctx, "SELECT ut.id,t.id,t.name,t.slug,ut.role,ut.is_active FROM user_tenants ut JOIN tenants t ON t.id=ut.tenant_id WHERE ut.user_id=$1 AND ut.is_active=true AND t.status='active' ORDER BY t.name", userID)

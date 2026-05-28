@@ -17,6 +17,12 @@ export const useUiStore = defineStore('ui', () => {
     sidebarCollapsed.value = !sidebarCollapsed.value
   }
 
+  function syncDesktopSidebar() {
+    if (window.matchMedia('(min-width: 761px)').matches) {
+      sidebarMobileOpen.value = false
+    }
+  }
+
   function openMobileSidebar() {
     sidebarMobileOpen.value = true
   }
@@ -44,6 +50,7 @@ export const useUiStore = defineStore('ui', () => {
     sidebarMobileOpen,
     toggleTheme,
     toggleSidebar,
+    syncDesktopSidebar,
     openMobileSidebar,
     closeMobileSidebar,
   }

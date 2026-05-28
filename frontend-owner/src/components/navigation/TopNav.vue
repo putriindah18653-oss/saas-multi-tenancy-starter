@@ -4,66 +4,72 @@
       <button type="button" class="topbar-action hamburger" aria-label="Open sidebar" @click="ui.openMobileSidebar">
         ☰
       </button>
-      <div>
-        <p class="topbar-eyebrow">Owner Control Center</p>
-        <h1 class="topbar-title">{{ title }}</h1>
-      </div>
+      <h1 class="topbar-title">{{ title }}</h1>
     </div>
 
     <div class="topbar-right">
       <slot name="actions" />
 
-      <div class="topbar-clock">
-        <span>{{ formattedDate }}</span>
-        <strong>{{ formattedTime }}</strong>
-      </div>
-
-      <button type="button" class="topbar-action" title="Layar Penuh" aria-label="Toggle fullscreen" @click="toggleFullscreen">
+      <button type="button" class="topbar-action" title="Fullscreen" aria-label="Toggle fullscreen" @click="toggleFullscreen">
         ⛶
       </button>
-      <button type="button" class="topbar-action" title="Tema" aria-label="Toggle theme" @click="ui.toggleTheme">
+      <button type="button" class="topbar-action" title="Theme" aria-label="Toggle theme" @click="ui.toggleTheme">
         {{ ui.theme === 'dark' ? '☀' : '☾' }}
       </button>
       <button type="button" class="topbar-action topbar-action--notify" title="Notifications" aria-label="Notifications">
-        🔔
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 17H9m9-6a6 6 0 1 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
         <span />
       </button>
 
       <div class="topbar-profile">
-        <button type="button" class="topbar-avatar" aria-label="Profile">
-          {{ initials }}
+        <button
+          type="button"
+          class="topbar-profile-trigger"
+          aria-label="Profile menu"
+          :aria-expanded="profileMenuOpen"
+          @click="profileMenuOpen = !profileMenuOpen"
+        >
+          <span class="topbar-avatar">{{ initials }}</span>
         </button>
-        <div class="topbar-profile-copy">
-          <p>{{ auth.user?.full_name || 'Owner' }}</p>
-          <span>{{ auth.user?.email || 'guest' }}</span>
+
+        <div v-if="profileMenuOpen" class="topbar-profile-menu">
+          <div class="topbar-profile-menu-user">
+            <span class="topbar-profile-menu-avatar">{{ initials }}</span>
+            <div class="min-w-0">
+              <p>{{ auth.user?.name || auth.user?.full_name || 'Owner' }}</p>
+              <span>{{ auth.user?.email || 'guest' }}</span>
+            </div>
+          </div>
+          <RouterLink class="topbar-profile-menu-item" to="/app/profile" @click="profileMenuOpen = false">
+            Profile
+          </RouterLink>
+          <button type="button" class="topbar-profile-menu-item topbar-profile-menu-item--danger" @click="onLogout">
+            Logout
+          </button>
         </div>
       </div>
-
-      <LogoutButton />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { authService } from '@/services/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import LogoutButton from '@/components/navigation/LogoutButton.vue'
 
 defineProps<{ title: string }>()
 const auth = useAuthStore()
 const ui = useUiStore()
-const now = ref(new Date())
-let timer: number | undefined
+const router = useRouter()
+const profileMenuOpen = ref(false)
 
-const formattedDate = computed(() =>
-  new Intl.DateTimeFormat('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(now.value),
-)
-const formattedTime = computed(() =>
-  new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(now.value),
-)
 const initials = computed(() => {
-  const source = auth.user?.full_name || auth.user?.email || 'Owner'
+  const source = auth.user?.name || auth.user?.full_name || auth.user?.email || 'Owner'
   return source
     .split(/\s+|@/)
     .filter(Boolean)
@@ -80,13 +86,20 @@ function toggleFullscreen() {
   document.exitFullscreen?.()
 }
 
-onMounted(() => {
-  timer = window.setInterval(() => {
-    now.value = new Date()
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  if (timer) window.clearInterval(timer)
-})
+async function onLogout() {
+  profileMenuOpen.value = false
+  let serverLogoutFailed = false
+  try {
+    if (auth.refreshToken) {
+      await authService.logout(auth.refreshToken)
+    }
+  } catch {
+    serverLogoutFailed = true
+  }
+  auth.clearSession()
+  if (serverLogoutFailed) {
+    alert('Warning: Server logout gagal. Session mungkin masih aktif di device lain.')
+  }
+  router.push('/auth/login')
+}
 </script>

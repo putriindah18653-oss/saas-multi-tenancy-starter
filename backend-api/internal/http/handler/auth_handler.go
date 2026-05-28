@@ -35,6 +35,13 @@ type changePasswordReq struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
 }
+type updateProfileReq struct {
+	Name      string `json:"name"`
+	Phone     string `json:"phone"`
+	Address   string `json:"address"`
+	AvatarURL string `json:"avatar_url"`
+	Bio       string `json:"bio"`
+}
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginReq
@@ -46,6 +53,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, 401, "invalid_credentials", "invalid email or password")
 		return
 	}
+	h.setRefreshCookie(w, rt)
 	h.log(r, u.ID, "auth.login", "user", u.ID)
 	response.Success(w, r, 200, map[string]any{"user": u, "tenant_memberships": u.Tenants, "access_token": a, "refresh_token": rt})
 }
@@ -54,11 +62,23 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	u, a, rt, err := h.svc.Refresh(r.Context(), req.RefreshToken, h.clientIP(r), r.UserAgent())
+	token := req.RefreshToken
+	if token == "" {
+		if c, err := r.Cookie("refresh_token"); err == nil {
+			token = c.Value
+		}
+	}
+	if token == "" {
+		response.Error(w, r, 400, "refresh_token_required", "refresh token required")
+		return
+	}
+	u, a, rt, err := h.svc.Refresh(r.Context(), token, h.clientIP(r), r.UserAgent())
 	if err != nil {
+		h.clearRefreshCookie(w)
 		response.Error(w, r, 401, "invalid_refresh_token", "invalid refresh token")
 		return
 	}
+	h.setRefreshCookie(w, rt)
 	response.Success(w, r, 200, map[string]any{"user": u, "access_token": a, "refresh_token": rt})
 }
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -66,18 +86,49 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	if req.RefreshToken == "" {
+	token := req.RefreshToken
+	if token == "" {
+		if c, err := r.Cookie("refresh_token"); err == nil {
+			token = c.Value
+		}
+	}
+	if token == "" {
 		response.Error(w, r, 400, "refresh_token_required", "refresh token required")
 		return
 	}
-	if err := h.svc.RevokeRefreshToken(r.Context(), req.RefreshToken); err != nil {
+	if err := h.svc.RevokeRefreshToken(r.Context(), token); err != nil {
 		response.Error(w, r, 500, "logout_failed", "could not revoke refresh token")
 		return
 	}
+	h.clearRefreshCookie(w)
 	if ac, ok := middleware.AuthFromContext(r.Context()); ok {
 		h.log(r, ac.UserID, "auth.logout", "user", ac.UserID)
 	}
 	response.Success(w, r, 200, map[string]any{"status": "logged_out"})
+}
+
+func (h *AuthHandler) setRefreshCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    token,
+		Path:     "/api/v1/auth",
+		HttpOnly: true,
+		Secure:   false, // set true in production with HTTPS
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   7 * 24 * 60 * 60, // 7 days
+	})
+}
+
+func (h *AuthHandler) clearRefreshCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/api/v1/auth",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
 }
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	ac, ok := middleware.AuthFromContext(r.Context())
@@ -90,6 +141,24 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, 404, "not_found", "user not found")
 		return
 	}
+	response.Success(w, r, 200, u)
+}
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	var req updateProfileReq
+	if !decode(w, r, &req) {
+		return
+	}
+	ac, ok := middleware.AuthFromContext(r.Context())
+	if !ok {
+		response.Error(w, r, 401, "unauthorized", "missing auth context")
+		return
+	}
+	u, err := h.svc.UpdateProfile(r.Context(), ac.UserID, req.Name, req.Phone, req.Address, req.AvatarURL, req.Bio)
+	if err != nil {
+		response.Error(w, r, 400, "profile_update_failed", "could not update profile")
+		return
+	}
+	h.log(r, ac.UserID, "auth.profile_update", "user", ac.UserID)
 	response.Success(w, r, 200, u)
 }
 func (h *AuthHandler) Sessions(w http.ResponseWriter, r *http.Request) {

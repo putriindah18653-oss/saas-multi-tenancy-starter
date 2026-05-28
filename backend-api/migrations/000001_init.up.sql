@@ -99,7 +99,7 @@ INSERT INTO roles(scope, name, description) VALUES
 ON CONFLICT(scope, name) DO NOTHING;
 
 INSERT INTO permissions(scope, key, description) VALUES
-('app','app.tenants.read','Read tenants'),('app','app.tenants.create','Create tenants'),('app','app.tenants.update','Update tenants'),('app','app.tenants.delete','Delete tenants'),('app','app.users.read','Read app users'),('app','app.users.manage','Manage app users'),('app','app.audit.read','Read app audit'),
+('app','app.tenants.read','Read tenants'),('app','app.tenants.create','Create tenants'),('app','app.tenants.update','Update tenants'),('app','app.tenants.delete','Delete tenants'),('app','app.users.read','Read app users'),('app','app.users.manage','Manage app users'),('app','app.audit.read','Read app audit'),('app','app.settings.read','Read app company settings'),('app','app.settings.update','Update app company settings'),
 ('tenant','tenant.dashboard.read','Read tenant dashboard'),('tenant','tenant.users.read','Read tenant users'),('tenant','tenant.users.invite','Invite tenant users'),('tenant','tenant.users.update','Update tenant users'),('tenant','tenant.users.remove','Remove tenant users'),('tenant','tenant.settings.read','Read tenant settings'),('tenant','tenant.settings.update','Update tenant settings'),('tenant','tenant.audit.read','Read tenant audit'),('tenant','tenant.billing.read','Read tenant billing'),('tenant','tenant.billing.manage','Manage tenant billing'),('tenant','tenant.reports.read','Read tenant reports'),('tenant','tenant.support.manage','Manage tenant support')
 ON CONFLICT(key) DO NOTHING;
 

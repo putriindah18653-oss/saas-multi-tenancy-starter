@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h2 class="owner-page-title">App Dashboard</h2>
-        <p class="owner-page-subtitle">Selamat datang, {{ auth.user?.full_name || auth.user?.email || 'user' }}.</p>
+        <p class="owner-page-subtitle">Selamat datang, {{ auth.user?.name || auth.user?.full_name || auth.user?.email || 'user' }}.</p>
       </div>
       <RouterLink
         v-if="canCreate"

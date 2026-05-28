@@ -1,10 +1,17 @@
+import axios from 'axios'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { appEnv } from '@/app/env'
 
 export type UserProfile = {
   id: string
   email: string
+  name?: string
   full_name?: string
+  phone?: string
+  address?: string
+  avatar_url?: string
+  bio?: string
   app_role?: string
   permissions?: string[]
   must_change_password?: boolean
@@ -39,14 +46,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (accessToken.value || !refreshToken.value) return !!accessToken.value
     restoring.value = true
     try {
-      const { authApi } = await import('@/services/api')
-      const res = await authApi.post('/auth/refresh', { refresh_token: refreshToken.value })
+      const res = await axios.post(`${appEnv.apiBaseUrl}/auth/refresh`, { refresh_token: refreshToken.value }, { timeout: 15000 })
       const data = res.data.data
       setSession({
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
         user: data.user ?? null,
       })
+      await fetchPermissions()
       return true
     } catch {
       clearSession()
@@ -56,5 +63,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { accessToken, refreshToken, user, restoring, isAuthenticated, defaultHomeRoute, setSession, clearSession, tryRestoreSession }
+  async function fetchPermissions() {
+    if (!accessToken.value) return
+    try {
+      const res = await axios.get(`${appEnv.apiBaseUrl}/me/permissions`, {
+        headers: { Authorization: `Bearer ${accessToken.value}` },
+        timeout: 10000,
+      })
+      const perms = res.data?.data?.app_permissions
+      if (Array.isArray(perms) && user.value) {
+        user.value = { ...user.value, permissions: perms }
+      }
+    } catch { /* fallback to role-based permissions */ }
+  }
+
+  return { accessToken, refreshToken, user, restoring, isAuthenticated, defaultHomeRoute, setSession, clearSession, tryRestoreSession, fetchPermissions }
 })

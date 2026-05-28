@@ -12,6 +12,8 @@ export type OwnerPermission =
   | 'app.users.read'
   | 'app.users.manage'
   | 'app.audit.read'
+  | 'app.settings.read'
+  | 'app.settings.update'
 
 export type Permission = OwnerPermission
 
@@ -23,13 +25,15 @@ const allOwnerPermissions: OwnerPermission[] = [
   'app.users.read',
   'app.users.manage',
   'app.audit.read',
+  'app.settings.read',
+  'app.settings.update',
 ]
 
 const ownerRolePermissions: Record<OwnerRole, OwnerPermission[]> = {
   'owner-app': allOwnerPermissions,
   admin: allOwnerPermissions.filter((permission) => permission !== 'app.tenants.delete'),
   super_admin: allOwnerPermissions,
-  platform_admin: ['app.tenants.read', 'app.tenants.create', 'app.tenants.update', 'app.users.read', 'app.users.manage', 'app.audit.read'],
+  platform_admin: ['app.tenants.read', 'app.tenants.create', 'app.tenants.update', 'app.users.read', 'app.users.manage', 'app.audit.read', 'app.settings.read', 'app.settings.update'],
   support_agent: ['app.tenants.read', 'app.users.read'],
   billing_admin: ['app.tenants.read'],
   auditor: ['app.tenants.read', 'app.audit.read'],

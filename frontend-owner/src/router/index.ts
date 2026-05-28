@@ -8,7 +8,10 @@ import TenantList from '@/pages/app/TenantList.vue'
 import TenantCreate from '@/pages/app/TenantCreate.vue'
 import TenantDetail from '@/pages/app/TenantDetail.vue'
 import AppAuditPage from '@/pages/app/AppAuditPage.vue'
+import ProfileSettingsPage from '@/pages/app/ProfileSettingsPage.vue'
+import CompanySettingsPage from '@/pages/app/CompanySettingsPage.vue'
 import ForbiddenPage from '@/pages/errors/ForbiddenPage.vue'
+import UnderDevelopmentPage from '@/pages/app/UnderDevelopmentPage.vue'
 import { useAuthStore } from '@/stores/auth'
 import { canOwner, type OwnerPermission } from '@/services/rbac'
 
@@ -29,11 +32,14 @@ const routes = [
     component: AppAdminLayout,
     meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' },
     children: [
-      { path: '', name: 'app-home', component: AppDashboard, meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
-      { path: 'tenants', name: 'app-tenant-list', component: TenantList, meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
-      { path: 'tenants/create', name: 'app-tenant-create', component: TenantCreate, meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.create' } },
-      { path: 'tenants/:id', name: 'app-tenant-detail', component: TenantDetail, meta: { requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
-      { path: 'audit', name: 'app-audit', component: AppAuditPage, meta: { requiresAuth: true, scope: 'owner', permission: 'app.audit.read' } },
+      { path: '', name: 'app-home', component: AppDashboard, meta: { title: 'Dashboard', requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
+      { path: 'tenants', name: 'app-tenant-list', component: TenantList, meta: { title: 'Customers', requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
+      { path: 'tenants/create', name: 'app-tenant-create', component: TenantCreate, meta: { title: 'Create Customer', requiresAuth: true, scope: 'owner', permission: 'app.tenants.create' } },
+      { path: 'tenants/:id', name: 'app-tenant-detail', component: TenantDetail, meta: { title: 'Customer Detail', requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
+      { path: 'audit', name: 'app-audit', component: AppAuditPage, meta: { title: 'Audit Log', requiresAuth: true, scope: 'owner', permission: 'app.audit.read' } },
+      { path: 'profile', name: 'app-profile', component: ProfileSettingsPage, meta: { title: 'Profile', requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
+      { path: 'settings', name: 'app-settings', component: CompanySettingsPage, meta: { title: 'Company Settings', requiresAuth: true, scope: 'owner', permission: 'app.settings.read' } },
+      { path: ':pathMatch(.*)*', name: 'app-wip', component: UnderDevelopmentPage, meta: { title: 'Under Development', requiresAuth: true, scope: 'owner', permission: 'app.tenants.read' } },
     ],
   },
 ]

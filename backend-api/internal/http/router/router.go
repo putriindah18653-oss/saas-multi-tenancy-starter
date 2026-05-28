@@ -21,6 +21,7 @@ func New(deps Dependencies, registrars ...DomainRegistrar) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recovery(deps.Logger))
+	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.Logging(deps.Logger))
 	if deps.Config != nil {
 		r.Use(middleware.CORS(deps.Config.CORS.AllowedOrigins))

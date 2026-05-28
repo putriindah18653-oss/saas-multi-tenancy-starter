@@ -74,12 +74,15 @@ function attachUnauthorizedHandler(instance: AxiosInstance) {
       }
 
       if (status === 401 && !original?._retry && !original?.url?.includes('/auth/refresh')) {
-        original._retry = true
-        const token = await refreshAccessToken()
-        if (token) {
-          original.headers = original.headers || {}
-          original.headers.Authorization = `Bearer ${token}`
-          return instance(original)
+        const auth = useAuthStore()
+        if (auth.accessToken && auth.refreshToken) {
+          original._retry = true
+          const token = await refreshAccessToken()
+          if (token) {
+            original.headers = original.headers || {}
+            original.headers.Authorization = `Bearer ${token}`
+            return instance(original)
+          }
         }
       }
 

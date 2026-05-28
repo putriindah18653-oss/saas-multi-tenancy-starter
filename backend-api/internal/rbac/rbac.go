@@ -60,7 +60,18 @@ func (s *Service) HasPermission(ctx context.Context, appRole, tenantRole, key st
 	}
 	var ok bool
 	err := s.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM roles r JOIN role_permissions rp ON rp.role_id=r.id JOIN permissions p ON p.id=rp.permission_id WHERE r.scope=$1 AND r.name=$2 AND p.key=$3)", scope, role, key).Scan(&ok)
-	return ok, err
+	if err != nil || ok || scope != "app" || appRole != "admin" {
+		return ok, err
+	}
+
+	// Backward compatibility for databases migrated before app.settings permissions existed.
+	// Keeps frontend-owner Settings usable until latest migrations are applied.
+	switch key {
+	case "app.settings.read", "app.settings.update":
+		return true, nil
+	default:
+		return false, nil
+	}
 }
 func (s *Service) TenantMembership(ctx context.Context, userID, tenantID string) (role string, ok bool, err error) {
 	err = s.db.QueryRow(ctx, "SELECT role FROM user_tenants WHERE user_id=$1 AND tenant_id=$2 AND is_active=true", userID, tenantID).Scan(&role)

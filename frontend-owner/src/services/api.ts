@@ -25,7 +25,10 @@ function refreshAccessToken() {
     refreshPromise = authApi
       .post('/auth/refresh', { refresh_token: auth.refreshToken })
       .then((response) => {
-        const data = response.data.data
+        const data = response.data?.data
+        if (!data?.access_token || typeof data.access_token !== 'string') {
+          throw new Error('invalid auth response')
+        }
         auth.setSession({
           accessToken: data.access_token,
           refreshToken: data.refresh_token,

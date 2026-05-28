@@ -68,6 +68,7 @@ async function submit() {
       refreshToken: payload.refresh_token,
       user: payload.user,
     })
+    await auth.fetchPermissions()
     router.push({ name: auth.defaultHomeRoute })
   } catch (e: any) {
     error.value = e?.response?.data?.error?.message || 'Login gagal'
