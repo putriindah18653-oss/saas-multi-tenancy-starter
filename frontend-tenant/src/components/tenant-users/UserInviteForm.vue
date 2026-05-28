@@ -1,23 +1,34 @@
 <template>
-  <form class="space-y-3 rounded-xl border border-slate-200 bg-white p-4" @submit.prevent="submit">
-    <h3 class="font-semibold text-slate-900">Invite member</h3>
-    <p class="text-xs text-slate-500">Temporary password ditampilkan sekali. Simpan aman, lalu minta user ganti password setelah login.</p>
-
-    <div class="grid gap-3 md:grid-cols-2">
-      <input v-model="form.name" required autocomplete="name" placeholder="Full name" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <input v-model="form.email" required type="email" autocomplete="email" placeholder="work@email.com" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+  <form class="space-y-4 rounded-[var(--tenant-radius-card)] border border-[var(--tenant-border)] bg-[var(--tenant-surface)] p-5" @submit.prevent="submit">
+    <div>
+      <h3 class="font-semibold text-[var(--tenant-text-primary)]">Invite member</h3>
+      <p class="tenant-helper">Temporary password ditampilkan sekali. Simpan aman, lalu minta user ganti password setelah login.</p>
     </div>
 
-    <select v-model="form.role" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-      <option value="admin">admin</option>
-      <option value="finance">finance</option>
-      <option value="support">support</option>
-      <option value="owner-tenant">owner-tenant</option>
-    </select>
+    <div class="grid gap-3 md:grid-cols-2">
+      <label>
+        <span class="tenant-label">Full name</span>
+        <input v-model="form.name" required autocomplete="name" placeholder="Full name" class="tenant-input" />
+      </label>
+      <label>
+        <span class="tenant-label">Email</span>
+        <input v-model="form.email" required type="email" autocomplete="email" placeholder="work@email.com" class="tenant-input" />
+      </label>
+    </div>
 
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+    <label class="block max-w-xs">
+      <span class="tenant-label">Role</span>
+      <select v-model="form.role" class="tenant-input">
+        <option value="admin">admin</option>
+        <option value="finance">finance</option>
+        <option value="support">support</option>
+        <option value="owner-tenant">owner-tenant</option>
+      </select>
+    </label>
 
-    <button :disabled="loading" class="rounded-md bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60">
+    <UiAlert v-if="error" title="Invite failed" tone="danger">{{ error }}</UiAlert>
+
+    <button :disabled="loading" class="rounded-[var(--tenant-radius-button)] bg-[var(--tenant-accent)] px-4 py-2 text-sm font-medium text-slate-950 hover:bg-[var(--tenant-accent-hover)] disabled:opacity-60">
       {{ loading ? 'Inviting...' : 'Invite' }}
     </button>
   </form>
@@ -25,6 +36,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import UiAlert from '@/components/common/UiAlert.vue'
 import { tenantUsersService } from '@/services/tenantUsers'
 
 const emit = defineEmits<{ invited: [payload: { message: string; temporaryPassword: string }] }>()

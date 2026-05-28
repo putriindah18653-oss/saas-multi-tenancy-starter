@@ -1,12 +1,12 @@
 <template>
-  <aside class="rounded-xl border border-slate-200 bg-white p-3">
-    <nav class="space-y-1">
+  <aside class="rounded-[var(--tenant-radius-card)] border border-[var(--tenant-border)] bg-[var(--tenant-bg-sidebar)] p-3">
+    <nav class="flex gap-1 overflow-x-auto lg:block lg:space-y-1">
       <RouterLink
         v-for="item in items"
         :key="item.to"
         :to="item.to"
-        class="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-        active-class="bg-slate-900 text-white hover:bg-slate-900"
+        class="whitespace-nowrap rounded-[var(--tenant-radius-button)] px-3 py-2 text-sm text-[var(--tenant-text-secondary)] transition hover:bg-white/[0.06] hover:text-[var(--tenant-text-primary)] lg:block"
+        active-class="bg-[var(--tenant-accent)] text-slate-950 hover:bg-[var(--tenant-accent-hover)] hover:text-slate-950"
       >
         {{ item.label }}
       </RouterLink>

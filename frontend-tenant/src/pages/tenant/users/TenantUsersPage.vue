@@ -1,84 +1,102 @@
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-semibold text-slate-900">Tenant Users</h2>
-      <span class="text-xs text-slate-500">Tenant: {{ tenant.selectedMembership?.tenant_name || tenant.selectedTenantId || '-' }}</span>
+  <div class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 class="tenant-page-title">Tenant Users</h2>
+        <p class="tenant-page-subtitle">Kelola member untuk {{ tenant.selectedMembership?.tenant_name || tenant.selectedTenantId || 'tenant aktif' }}.</p>
+      </div>
+      <span class="w-fit rounded-full border border-[var(--tenant-border)] bg-white/[0.04] px-3 py-1 text-sm text-[var(--tenant-text-secondary)]">
+        {{ members.length }} members
+      </span>
     </div>
 
-    <div v-if="flashMessage" class="space-y-2 rounded-md bg-emerald-50 px-3 py-3 text-sm text-emerald-800">
+    <UiAlert v-if="flashMessage" title="User invited" tone="success">
       <p>{{ flashMessage }}</p>
-      <div v-if="tempPassword" class="rounded border border-emerald-200 bg-white px-3 py-2">
-        <p class="text-xs text-slate-600">Temporary password (show once):</p>
-        <div class="mt-1 flex flex-wrap items-center gap-2">
-          <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-900">{{ tempPassword }}</code>
-          <button class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700" @click="copyTempPassword">
+      <div v-if="tempPassword" class="mt-3 rounded-[var(--tenant-radius-button)] border border-[var(--tenant-border)] bg-black/20 px-3 py-2">
+        <p class="text-xs text-[var(--tenant-text-muted)]">Temporary password (show once):</p>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <code class="rounded bg-white/[0.06] px-2 py-1 text-xs text-[var(--tenant-text-primary)]">{{ tempPassword }}</code>
+          <button class="rounded-[var(--tenant-radius-button)] border border-[var(--tenant-border)] px-2 py-1 text-xs text-[var(--tenant-text-secondary)]" @click="copyTempPassword">
             {{ copied ? 'Copied' : 'Copy' }}
           </button>
-          <button class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700" @click="dismissTempPassword">
+          <button class="rounded-[var(--tenant-radius-button)] border border-[var(--tenant-border)] px-2 py-1 text-xs text-[var(--tenant-text-secondary)]" @click="dismissTempPassword">
             Hide
           </button>
         </div>
       </div>
-    </div>
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+    </UiAlert>
+    <UiAlert v-if="error" title="Failed to load tenant users" tone="danger">{{ error }}</UiAlert>
+    <UiAlert v-if="!tenant.selectedTenantId" title="Tenant belum dipilih" tone="warning">Pilih tenant dulu dari switcher kanan atas untuk mengelola user.</UiAlert>
 
     <UserInviteForm v-if="canInvite" @invited="onInvited" />
 
-    <div v-if="!tenant.selectedTenantId" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      Pilih tenant dulu dari switcher di kanan atas untuk mengelola user tenant.
-    </div>
+    <AppCard v-if="tenant.selectedTenantId">
+      <div class="overflow-x-auto">
+        <table class="tenant-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading" v-for="i in 4" :key="`skeleton-${i}`">
+              <td colspan="5"><div class="h-10 animate-pulse rounded-[var(--tenant-radius-button)] bg-white/[0.05]" /></td>
+            </tr>
+            <tr v-for="m in members" v-else :key="m.id">
+              <td class="font-medium text-[var(--tenant-text-primary)]">{{ m.name }}</td>
+              <td>{{ m.email }}</td>
+              <td>
+                <select
+                  :value="m.role"
+                  :disabled="!canUpdate || loading"
+                  class="tenant-input max-w-[180px]"
+                  @change="changeRole(m.id, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="owner-tenant">owner-tenant</option>
+                  <option value="admin">admin</option>
+                  <option value="finance">finance</option>
+                  <option value="support">support</option>
+                </select>
+              </td>
+              <td>
+                <span class="rounded-full border border-[var(--tenant-border)] px-2 py-1 text-xs" :class="m.is_active ? 'text-[var(--tenant-success)]' : 'text-[var(--tenant-text-muted)]'">
+                  {{ m.is_active ? 'active' : 'inactive' }}
+                </span>
+              </td>
+              <td>
+                <button
+                  v-if="canRemove"
+                  :disabled="loading || !m.is_active"
+                  class="rounded-[var(--tenant-radius-button)] border border-red-400/30 px-3 py-1.5 text-sm text-[var(--tenant-danger)] disabled:cursor-not-allowed disabled:opacity-50"
+                  @click="removeMember(m.id)"
+                >
+                  Remove
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-    <div v-if="tenant.selectedTenantId" class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-50 text-left text-slate-600">
-          <tr>
-            <th class="px-4 py-3">Name</th>
-            <th class="px-4 py-3">Email</th>
-            <th class="px-4 py-3">Role</th>
-            <th class="px-4 py-3">Status</th>
-            <th class="px-4 py-3">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="m in members" :key="m.id" class="border-t border-slate-100">
-            <td class="px-4 py-3">{{ m.name }}</td>
-            <td class="px-4 py-3">{{ m.email }}</td>
-            <td class="px-4 py-3">
-              <select
-                :value="m.role"
-                :disabled="!canUpdate || loading"
-                class="rounded border border-slate-300 px-2 py-1"
-                @change="changeRole(m.id, ($event.target as HTMLSelectElement).value)"
-              >
-                <option value="owner-tenant">owner-tenant</option>
-                <option value="admin">admin</option>
-                <option value="finance">finance</option>
-                <option value="support">support</option>
-              </select>
-            </td>
-            <td class="px-4 py-3">{{ m.is_active ? 'active' : 'inactive' }}</td>
-            <td class="px-4 py-3">
-              <button
-                v-if="canRemove"
-                :disabled="loading || !m.is_active"
-                class="rounded border border-red-300 px-2 py-1 text-red-700 disabled:opacity-50"
-                @click="removeMember(m.id)"
-              >
-                Remove
-              </button>
-            </td>
-          </tr>
-          <tr v-if="!loading && members.length === 0">
-            <td colspan="5" class="px-4 py-6 text-center text-slate-500">No members found.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <UiEmptyState
+        v-if="!loading && members.length === 0"
+        class="mt-4"
+        title="No members found"
+        description="Invite first member or switch tenant."
+      />
+    </AppCard>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import AppCard from '@/components/common/AppCard.vue'
+import UiAlert from '@/components/common/UiAlert.vue'
+import UiEmptyState from '@/components/common/UiEmptyState.vue'
 import { useTenantStore } from '@/stores/tenant'
 import { tenantUsersService, type TenantMember } from '@/services/tenantUsers'
 import { canTenant } from '@/services/rbac'
@@ -95,7 +113,6 @@ const copied = ref(false)
 const canInvite = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.invite'))
 const canUpdate = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.update'))
 const canRemove = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.remove'))
-const canManage = computed(() => canInvite.value || canUpdate.value || canRemove.value)
 
 async function load() {
   if (!tenant.selectedTenantId) {

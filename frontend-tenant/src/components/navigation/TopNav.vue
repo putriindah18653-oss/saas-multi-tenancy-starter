@@ -1,14 +1,14 @@
 <template>
-  <header class="border-b border-slate-200 bg-white">
-    <div class="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6">
+  <header class="border-b border-[var(--tenant-border)] bg-[var(--tenant-bg-sidebar)]/95 backdrop-blur">
+    <div class="mx-auto flex min-h-16 w-full max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div>
-        <p class="text-sm text-slate-500">Control Panel</p>
-        <h1 class="text-base font-semibold text-slate-900">{{ title }}</h1>
+        <p class="text-sm text-[var(--tenant-text-muted)]">Tenant Control Panel</p>
+        <h1 class="text-base font-semibold text-[var(--tenant-text-primary)]">{{ title }}</h1>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <slot name="actions" />
-        <span class="hidden text-sm text-slate-600 md:block">{{ auth.user?.email || 'guest' }}</span>
+        <span class="hidden text-sm text-[var(--tenant-text-secondary)] md:block">{{ auth.user?.email || 'guest' }}</span>
         <LogoutButton />
       </div>
     </div>
