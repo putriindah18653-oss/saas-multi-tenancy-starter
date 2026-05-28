@@ -4,7 +4,12 @@ import { defineStore } from 'pinia'
 export type UserProfile = {
   id: string
   email: string
+  name?: string
   full_name?: string
+  phone?: string
+  address?: string
+  avatar_url?: string
+  bio?: string
   app_role?: string
   must_change_password?: boolean
 }

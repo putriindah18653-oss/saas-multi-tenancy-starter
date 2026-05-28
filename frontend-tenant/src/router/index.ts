@@ -6,6 +6,7 @@ import ChangePasswordPage from '@/pages/auth/ChangePasswordPage.vue'
 import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
 import TenantUsersPage from '@/pages/tenant/users/TenantUsersPage.vue'
 import TenantSettingsPage from '@/pages/tenant/TenantSettingsPage.vue'
+import ProfileSettingsPage from '@/pages/tenant/ProfileSettingsPage.vue'
 import TenantAuditPage from '@/pages/tenant/TenantAuditPage.vue'
 import ForbiddenPage from '@/pages/errors/ForbiddenPage.vue'
 import TenantNotFoundPage from '@/pages/errors/TenantNotFoundPage.vue'
@@ -32,10 +33,11 @@ const routes = [
     component: TenantLayout,
     meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.dashboard.read' },
     children: [
-      { path: '', name: 'tenant-home', component: TenantDashboard, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.dashboard.read' } },
-      { path: 'users', name: 'tenant-users', component: TenantUsersPage, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.users.read' } },
-      { path: 'settings', name: 'tenant-settings', component: TenantSettingsPage, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.settings.read' } },
-      { path: 'audit', name: 'tenant-audit', component: TenantAuditPage, meta: { requiresAuth: true, scope: 'tenant', permission: 'tenant.audit.read' } },
+      { path: '', name: 'tenant-home', component: TenantDashboard, meta: { title: 'Dashboard', requiresAuth: true, scope: 'tenant', permission: 'tenant.dashboard.read' } },
+      { path: 'profile', name: 'tenant-profile', component: ProfileSettingsPage, meta: { title: 'Profile', requiresAuth: true, scope: 'tenant', permission: 'tenant.dashboard.read' } },
+      { path: 'users', name: 'tenant-users', component: TenantUsersPage, meta: { title: 'Users', requiresAuth: true, scope: 'tenant', permission: 'tenant.users.read' } },
+      { path: 'settings', name: 'tenant-settings', component: TenantSettingsPage, meta: { title: 'Settings', requiresAuth: true, scope: 'tenant', permission: 'tenant.settings.read' } },
+      { path: 'audit', name: 'tenant-audit', component: TenantAuditPage, meta: { title: 'Audit Log', requiresAuth: true, scope: 'tenant', permission: 'tenant.audit.read' } },
     ],
   },
 ]
