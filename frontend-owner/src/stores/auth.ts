@@ -6,11 +6,13 @@ export type UserProfile = {
   email: string
   full_name?: string
   app_role?: string
+  permissions?: string[]
+  must_change_password?: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null)
-  const refreshToken = ref<string | null>(null)
+  const refreshToken = ref<string | null>(sessionStorage.getItem('refresh_token'))
   const user = ref<UserProfile | null>(null)
 
   const isAuthenticated = computed(() => !!accessToken.value)
@@ -18,13 +20,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setSession(payload: { accessToken: string; refreshToken?: string; user?: UserProfile | null }) {
     accessToken.value = payload.accessToken
-    if (payload.refreshToken) refreshToken.value = payload.refreshToken
+    if (payload.refreshToken) {
+      refreshToken.value = payload.refreshToken
+      sessionStorage.setItem('refresh_token', payload.refreshToken)
+    }
     if (payload.user !== undefined) user.value = payload.user
   }
 
   function clearSession() {
     accessToken.value = null
     refreshToken.value = null
+    sessionStorage.removeItem('refresh_token')
     user.value = null
   }
 

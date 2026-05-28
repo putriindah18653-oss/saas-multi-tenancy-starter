@@ -1,3 +1,116 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-app: #08090a;
+    --bg-sidebar: #0f1011;
+    --surface: #141516;
+    --surface-elevated: #191a1b;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --text-primary: #f7f8f8;
+    --text-secondary: #d0d6e0;
+    --text-muted: #8a8f98;
+    --accent: #5e6ad2;
+    --accent-hover: #7170ff;
+    --danger: #ff6467;
+    --warning: #f59e0b;
+    --success: #27a644;
+    --info: #2f9bff;
+    --radius-card: 12px;
+    --radius-button: 10px;
+    --radius-kpi: 8px;
+    --button-primary-bg: var(--accent);
+    --button-primary-bg-hover: var(--accent-hover);
+    --button-secondary-bg: rgba(255, 255, 255, 0.06);
+    --button-danger-bg: rgba(255, 100, 103, 0.12);
+    --focus-ring: rgba(113, 112, 255, 0.42);
+  }
+
+  html {
+    background: var(--bg-app);
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(94, 106, 210, 0.2), transparent 32rem),
+      radial-gradient(circle at bottom right, rgba(47, 155, 255, 0.1), transparent 28rem),
+      var(--bg-app);
+    color: var(--text-primary);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .owner-input {
+    @apply w-full px-3 py-2 text-sm transition;
+    border-radius: var(--radius-button);
+    border: 1px solid var(--border-strong);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+  }
+
+  .owner-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .owner-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .owner-label {
+    @apply mb-1.5 block text-sm font-medium;
+    color: var(--text-secondary);
+  }
+
+  .owner-helper {
+    @apply mt-1.5 text-xs;
+    color: var(--text-muted);
+  }
+
+  .owner-page-title {
+    @apply text-2xl font-semibold tracking-tight;
+    color: var(--text-primary);
+  }
+
+  .owner-page-subtitle {
+    @apply mt-1 text-sm;
+    color: var(--text-muted);
+  }
+
+  .owner-table {
+    @apply min-w-full text-sm;
+  }
+
+  .owner-table thead {
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--text-muted);
+  }
+
+  .owner-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .owner-table td {
+    @apply px-4 py-3 align-middle;
+    color: var(--text-secondary);
+  }
+
+  .owner-table tbody tr {
+    border-top: 1px solid var(--border);
+  }
+}

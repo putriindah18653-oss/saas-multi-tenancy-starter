@@ -1,14 +1,16 @@
 <template>
-  <header class="border-b border-slate-200 bg-white">
-    <div class="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6">
+  <header class="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg-app)]/85 backdrop-blur-xl">
+    <div class="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6">
       <div>
-        <p class="text-sm text-slate-500">Control Panel</p>
-        <h1 class="text-base font-semibold text-slate-900">{{ title }}</h1>
+        <p class="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Control Panel</p>
+        <h1 class="text-base font-semibold text-[var(--text-primary)]">{{ title }}</h1>
       </div>
 
       <div class="flex items-center gap-3">
         <slot name="actions" />
-        <span class="hidden text-sm text-slate-600 md:block">{{ auth.user?.email || 'guest' }}</span>
+        <div class="hidden rounded-full border border-[var(--border)] bg-white/[0.03] px-3 py-1.5 text-sm text-[var(--text-secondary)] md:block">
+          {{ auth.user?.email || 'guest' }}
+        </div>
         <LogoutButton />
       </div>
     </div>

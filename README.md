@@ -33,6 +33,14 @@ Port:
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
 
+LAN access:
+
+- Owner frontend: `http://<host-lan-ip>:5173`
+- Tenant frontend: `http://<host-lan-ip>:5174`
+- Backend API: `http://<host-lan-ip>:8080`
+
+For local/LAN development, leave `VITE_API_BASE_URL` empty or unset so browser clients derive API host from the current frontend host. If you set `VITE_API_BASE_URL=http://localhost:8080/api/v1`, a phone or another LAN device will call its own localhost, not the dev machine.
+
 ## Onboarding flow
 
 1. Run migrations. Migration hard-seed satu owner-app untuk local/demo:

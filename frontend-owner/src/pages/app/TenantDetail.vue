@@ -1,45 +1,74 @@
 <template>
-  <div class="max-w-3xl space-y-4">
-    <h2 class="text-xl font-semibold text-slate-900">Tenant Detail</h2>
-
-    <div v-if="error" class="text-sm text-red-600">{{ error }}</div>
-
-    <form v-if="tenant" class="space-y-4 rounded-xl border border-slate-200 bg-white p-4" @submit.prevent="save">
+  <div class="max-w-3xl space-y-6">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <label class="mb-1 block text-sm text-slate-700">Name</label>
-        <input v-model="form.name" class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <h2 class="owner-page-title">Tenant detail</h2>
+        <p class="owner-page-subtitle">Update nama dan status tenant sesuai izin owner.</p>
       </div>
+      <RouterLink to="/app/tenants" class="text-sm font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]">Back to tenants</RouterLink>
+    </div>
 
-      <div>
-        <label class="mb-1 block text-sm text-slate-700">Slug</label>
-        <input :value="tenant.slug" disabled class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500" />
-      </div>
+    <UiAlert v-if="error" title="Tenant request failed" tone="danger">{{ error }}</UiAlert>
+    <UiAlert v-if="saved" title="Tenant updated" tone="success">Perubahan sudah tersimpan.</UiAlert>
 
-      <div>
-        <label class="mb-1 block text-sm text-slate-700">Status</label>
-        <select v-model="form.status" class="w-full rounded-md border border-slate-300 px-3 py-2">
-          <option value="active">active</option>
-          <option value="inactive">inactive</option>
-          <option value="deleted">deleted</option>
-        </select>
+    <AppCard v-if="loading && !tenant">
+      <div class="space-y-3">
+        <div class="h-10 animate-pulse rounded-[var(--radius-button)] bg-white/[0.05]" />
+        <div class="h-10 animate-pulse rounded-[var(--radius-button)] bg-white/[0.05]" />
+        <div class="h-10 animate-pulse rounded-[var(--radius-button)] bg-white/[0.05]" />
       </div>
+    </AppCard>
 
-      <div class="flex flex-wrap gap-2">
-        <button :disabled="loading || !canManage" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
-          {{ loading ? 'Saving...' : 'Save changes' }}
-        </button>
-        <button type="button" :disabled="loading || !canDelete" class="rounded-md border border-red-300 px-4 py-2 text-sm text-red-700 disabled:opacity-60" @click="removeTenant">
-          Soft delete
-        </button>
-        <RouterLink to="/app/tenants" class="rounded-md border border-slate-300 px-4 py-2 text-sm">Back</RouterLink>
-      </div>
-    </form>
+    <UiEmptyState v-else-if="!tenant" title="Tenant not available" description="Tenant tidak ditemukan atau belum bisa dimuat." />
+
+    <AppCard v-else>
+      <form class="space-y-5" @submit.prevent="save">
+        <div>
+          <label for="tenant-name" class="owner-label">Name</label>
+          <input id="tenant-name" v-model="form.name" :disabled="!canManage" class="owner-input" />
+        </div>
+
+        <div>
+          <label for="tenant-slug" class="owner-label">Slug</label>
+          <input id="tenant-slug" :value="tenant.slug" disabled class="owner-input" />
+        </div>
+
+        <div>
+          <label for="tenant-status" class="owner-label">Status</label>
+          <select id="tenant-status" v-model="form.status" :disabled="!canManage" class="owner-input">
+            <option value="active">active</option>
+            <option value="inactive">inactive</option>
+            <option value="deleted">deleted</option>
+          </select>
+        </div>
+
+        <div v-if="!canManage" class="rounded-[var(--radius-card)] border border-[var(--border)] bg-white/[0.03] p-3 text-sm text-[var(--text-muted)]">
+          Akun Anda hanya punya akses baca untuk tenant ini.
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <AppButton type="submit" :disabled="loading || !canManage">
+            {{ loading ? 'Saving...' : 'Save changes' }}
+          </AppButton>
+          <AppButton variant="danger" :disabled="loading || !canDelete" @click="removeTenant">
+            Soft delete
+          </AppButton>
+          <RouterLink to="/app/tenants" class="inline-flex min-h-10 items-center rounded-[var(--radius-button)] border border-[var(--border-strong)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-white/5">
+            Back
+          </RouterLink>
+        </div>
+      </form>
+    </AppCard>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AppButton from '@/components/common/AppButton.vue'
+import AppCard from '@/components/common/AppCard.vue'
+import UiAlert from '@/components/common/UiAlert.vue'
+import UiEmptyState from '@/components/common/UiEmptyState.vue'
 import { useAuthStore } from '@/stores/auth'
 import { tenantsService, type Tenant } from '@/services/tenants'
 import { canOwner } from '@/services/rbac'
@@ -52,6 +81,7 @@ const id = computed(() => String(route.params.id || ''))
 const tenant = ref<Tenant | null>(null)
 const loading = ref(false)
 const error = ref('')
+const saved = ref(false)
 const form = reactive({ name: '', status: 'active' })
 
 const canManage = computed(() => canOwner(auth.user, 'app.tenants.update'))
@@ -76,11 +106,13 @@ async function save() {
   if (!canManage.value) return
   loading.value = true
   error.value = ''
+  saved.value = false
   try {
     const res = await tenantsService.update(id.value, { name: form.name, status: form.status })
     tenant.value = res.data.data
     form.name = tenant.value.name
     form.status = tenant.value.status
+    saved.value = true
   } catch (e: any) {
     error.value = e?.response?.data?.error?.message || 'Failed to update tenant'
   } finally {

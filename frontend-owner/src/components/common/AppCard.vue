@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+  <section class="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-5 text-[var(--text-primary)]">
     <slot />
-  </div>
+  </section>
 </template>

@@ -3,6 +3,7 @@ package tenant
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,9 +17,47 @@ type Tenant struct {
 }
 type Service struct{ db *pgxpool.Pool }
 
+var slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])?$`)
+
 func NewService(db *pgxpool.Pool) *Service { return &Service{db: db} }
 func slug(s string) string {
-	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(s), " ", "-"))
+	return strings.Trim(strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r + ('a' - 'A')
+		case r == ' ', r == '-', r == '_':
+			return '-'
+		default:
+			return -1
+		}
+	}, strings.TrimSpace(s)), "-")
+}
+func validateName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 120 {
+		return "", errors.New("tenant name must be 1-120 characters")
+	}
+	return name, nil
+}
+func validateSlug(sl string) (string, error) {
+	sl = strings.TrimSpace(strings.ToLower(sl))
+	if !slugPattern.MatchString(sl) {
+		return "", errors.New("tenant slug must be 3-64 chars using lowercase letters, numbers, and hyphens")
+	}
+	return sl, nil
+}
+func validateStatus(status string) (string, error) {
+	status = strings.TrimSpace(status)
+	switch status {
+	case "active", "suspended":
+		return status, nil
+	case "deleted":
+		return "", errors.New("deleted status requires delete endpoint")
+	default:
+		return "", errors.New("invalid tenant status")
+	}
 }
 func (s *Service) List(ctx context.Context) ([]Tenant, error) {
 	rows, err := s.db.Query(ctx, "SELECT id,name,slug,status FROM tenants WHERE status<>'deleted' ORDER BY created_at DESC")
@@ -40,8 +79,17 @@ func (s *Service) Create(ctx context.Context, creatorUserID, name, sl string) (T
 	if creatorUserID == "" {
 		return Tenant{}, errors.New("creator user is required")
 	}
+	var err error
+	name, err = validateName(name)
+	if err != nil {
+		return Tenant{}, err
+	}
 	if sl == "" {
 		sl = slug(name)
+	}
+	sl, err = validateSlug(sl)
+	if err != nil {
+		return Tenant{}, err
 	}
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
@@ -73,11 +121,19 @@ func (s *Service) Update(ctx context.Context, id, name, status string) (Tenant, 
 	if err != nil {
 		return cur, err
 	}
-	if name == "" {
+	if strings.TrimSpace(name) == "" {
 		name = cur.Name
 	}
-	if status == "" {
+	name, err = validateName(name)
+	if err != nil {
+		return Tenant{}, err
+	}
+	if strings.TrimSpace(status) == "" {
 		status = cur.Status
+	}
+	status, err = validateStatus(status)
+	if err != nil {
+		return Tenant{}, err
 	}
 	var t Tenant
 	err = s.db.QueryRow(ctx, "UPDATE tenants SET name=$2,status=$3,updated_at=now() WHERE id=$1 RETURNING id,name,slug,status", id, name, status).Scan(&t.ID, &t.Name, &t.Slug, &t.Status)

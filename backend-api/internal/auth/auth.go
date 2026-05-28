@@ -148,7 +148,7 @@ func (s *Service) token(u *UserProfile, typ, jti string, ttl time.Duration) (str
 	if err != nil {
 		return "", err
 	}
-	claims := Claims{UserID: u.ID, Email: u.Email, AppRole: u.AppRole, TokenType: typ, RegisteredClaims: jwt.RegisteredClaims{Subject: u.ID, ID: jti, ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)), IssuedAt: jwt.NewNumericDate(time.Now())}}
+	claims := Claims{UserID: u.ID, Email: u.Email, AppRole: u.AppRole, TokenType: typ, RegisteredClaims: jwt.RegisteredClaims{Subject: u.ID, ID: jti, Issuer: "saas-starter-api", Audience: jwt.ClaimStrings{typ}, ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)), IssuedAt: jwt.NewNumericDate(time.Now())}}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 }
 func (s *Service) secret(typ string) (string, error) {
@@ -171,8 +171,18 @@ func (s *Service) Parse(tokenString, typ string) (*Claims, error) {
 	if err != nil || !token.Valid {
 		return nil, errors.New("invalid token")
 	}
-	if claims.TokenType != typ {
+	if claims.TokenType != typ || claims.Issuer != "saas-starter-api" {
 		return nil, errors.New("invalid token type")
+	}
+	hasAudience := false
+	for _, audience := range claims.Audience {
+		if audience == typ {
+			hasAudience = true
+			break
+		}
+	}
+	if !hasAudience {
+		return nil, errors.New("invalid token audience")
 	}
 	return claims, nil
 }
@@ -297,6 +307,9 @@ func IsNoRows(err error) bool { return errors.Is(err, pgx.ErrNoRows) }
 func validatePassword(password string) error {
 	if len(password) < 12 {
 		return errors.New("password must be at least 12 characters")
+	}
+	if len([]byte(password)) > 72 {
+		return errors.New("password must be at most 72 bytes")
 	}
 	lower := strings.ToLower(password)
 	weak := []string{"password", "qwerty", "123456", "admin", "letmein"}

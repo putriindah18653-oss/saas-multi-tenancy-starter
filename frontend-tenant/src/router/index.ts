@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type NavigationGuardNext, type RouteLoc
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import TenantLayout from '@/layouts/TenantLayout.vue'
 import LoginPage from '@/pages/auth/LoginPage.vue'
+import ChangePasswordPage from '@/pages/auth/ChangePasswordPage.vue'
 import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
 import TenantUsersPage from '@/pages/tenant/users/TenantUsersPage.vue'
 import TenantSettingsPage from '@/pages/tenant/TenantSettingsPage.vue'
@@ -19,6 +20,7 @@ const routes = [
     component: AuthLayout,
     children: [
       { path: 'login', name: 'auth-login', component: LoginPage, meta: { guestOnly: true } },
+      { path: 'change-password', name: 'auth-change-password', component: ChangePasswordPage, meta: { requiresAuth: true } },
       { path: 'register-owner', redirect: { name: 'auth-login' } },
     ],
   },
@@ -61,6 +63,11 @@ router.beforeEach((to: RouteLocationNormalized, _from: RouteLocationNormalized, 
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
     next({ name: auth.defaultHomeRoute })
+    return
+  }
+
+  if (auth.user?.must_change_password && to.name !== 'auth-change-password') {
+    next({ name: 'auth-change-password' })
     return
   }
 

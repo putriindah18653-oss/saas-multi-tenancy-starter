@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen bg-slate-100">
-    <TopNav title="App Admin" />
-    <div class="mx-auto grid max-w-7xl gap-6 p-6 lg:grid-cols-[240px_1fr]">
+  <div class="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)]">
+    <TopNav title="Owner dashboard" />
+    <div class="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[240px_1fr]">
       <AppSidebar :items="items" />
-      <main>
+      <main class="min-w-0">
         <RouterView />
       </main>
     </div>

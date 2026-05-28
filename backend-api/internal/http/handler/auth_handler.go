@@ -63,8 +63,17 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	var req logoutReq
-	_ = decode(w, r, &req)
-	_ = h.svc.RevokeRefreshToken(r.Context(), req.RefreshToken)
+	if !decode(w, r, &req) {
+		return
+	}
+	if req.RefreshToken == "" {
+		response.Error(w, r, 400, "refresh_token_required", "refresh token required")
+		return
+	}
+	if err := h.svc.RevokeRefreshToken(r.Context(), req.RefreshToken); err != nil {
+		response.Error(w, r, 500, "logout_failed", "could not revoke refresh token")
+		return
+	}
 	if ac, ok := middleware.AuthFromContext(r.Context()); ok {
 		h.log(r, ac.UserID, "auth.logout", "user", ac.UserID)
 	}

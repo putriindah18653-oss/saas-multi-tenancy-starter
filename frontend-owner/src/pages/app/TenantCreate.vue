@@ -1,33 +1,44 @@
 <template>
-  <div class="max-w-2xl space-y-4">
-    <h2 class="text-xl font-semibold text-slate-900">Create Tenant</h2>
+  <div class="max-w-2xl space-y-6">
+    <div>
+      <h2 class="owner-page-title">Create tenant</h2>
+      <p class="owner-page-subtitle">Buat workspace tenant baru tanpa mengubah kontrak API.</p>
+    </div>
 
-    <form class="space-y-4 rounded-xl border border-slate-200 bg-white p-4" @submit.prevent="submit">
-      <div>
-        <label class="mb-1 block text-sm text-slate-700">Name</label>
-        <input v-model="form.name" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
-      </div>
+    <AppCard>
+      <form class="space-y-5" @submit.prevent="submit">
+        <div>
+          <label for="tenant-name" class="owner-label">Name</label>
+          <input id="tenant-name" v-model="form.name" required class="owner-input" placeholder="Acme Corp" />
+        </div>
 
-      <div>
-        <label class="mb-1 block text-sm text-slate-700">Slug (optional)</label>
-        <input v-model="form.slug" class="w-full rounded-md border border-slate-300 px-3 py-2" />
-      </div>
+        <div>
+          <label for="tenant-slug" class="owner-label">Slug (optional)</label>
+          <input id="tenant-slug" v-model="form.slug" class="owner-input" placeholder="acme-corp" />
+          <p class="owner-helper">Kosongkan untuk mengikuti aturan backend.</p>
+        </div>
 
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+        <UiAlert v-if="error" title="Failed to create tenant" tone="danger">{{ error }}</UiAlert>
 
-      <div class="flex gap-2">
-        <button :disabled="loading" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
-          {{ loading ? 'Saving...' : 'Save' }}
-        </button>
-        <RouterLink to="/app/tenants" class="rounded-md border border-slate-300 px-4 py-2 text-sm">Cancel</RouterLink>
-      </div>
-    </form>
+        <div class="flex flex-wrap gap-2">
+          <AppButton type="submit" :disabled="loading">
+            {{ loading ? 'Saving...' : 'Save tenant' }}
+          </AppButton>
+          <RouterLink to="/app/tenants" class="inline-flex min-h-10 items-center rounded-[var(--radius-button)] border border-[var(--border-strong)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-white/5">
+            Cancel
+          </RouterLink>
+        </div>
+      </form>
+    </AppCard>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import AppButton from '@/components/common/AppButton.vue'
+import AppCard from '@/components/common/AppCard.vue'
+import UiAlert from '@/components/common/UiAlert.vue'
 import { tenantsService } from '@/services/tenants'
 
 const router = useRouter()

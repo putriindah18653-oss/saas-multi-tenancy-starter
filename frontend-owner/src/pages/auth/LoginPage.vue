@@ -1,32 +1,53 @@
 <template>
   <div>
-    <h2 class="text-2xl font-semibold text-slate-900">Login</h2>
-    <p class="mt-1 text-sm text-slate-600">Masuk untuk akses dashboard sesuai role Anda.</p>
+    <p class="text-sm font-medium text-[var(--accent)]">Welcome back</p>
+    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Login</h2>
+    <p class="mt-2 text-sm text-[var(--text-muted)]">Masuk untuk akses dashboard sesuai role Anda.</p>
 
-    <form class="mt-6 space-y-4" @submit.prevent="submit">
+    <form class="mt-7 space-y-5" @submit.prevent="submit">
       <div>
-        <label class="mb-1 block text-sm text-slate-700">Email</label>
-        <input v-model="form.email" type="email" autocomplete="email" placeholder="you@company.com" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <label for="email" class="owner-label">Email</label>
+        <input
+          id="email"
+          v-model="form.email"
+          type="email"
+          autocomplete="email"
+          placeholder="you@company.com"
+          required
+          class="owner-input"
+        />
       </div>
       <div>
-        <label class="mb-1 block text-sm text-slate-700">Password</label>
-        <input v-model="form.password" type="password" autocomplete="current-password" placeholder="••••••••" required class="w-full rounded-md border border-slate-300 px-3 py-2" />
+        <label for="password" class="owner-label">Password</label>
+        <input
+          id="password"
+          v-model="form.password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          required
+          class="owner-input"
+        />
       </div>
 
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+      <UiAlert v-if="error" title="Login gagal" tone="danger">{{ error }}</UiAlert>
 
-      <button :disabled="loading" class="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+      <AppButton type="submit" :disabled="loading" class="w-full">
         {{ loading ? 'Loading...' : 'Login' }}
-      </button>
+      </AppButton>
     </form>
 
-    <p class="mt-5 text-sm text-slate-600">Gunakan akun yang sudah disediakan admin untuk masuk.</p>
+    <p class="mt-6 rounded-[var(--radius-card)] border border-[var(--border)] bg-white/[0.03] p-3 text-xs leading-5 text-[var(--text-muted)]">
+      Gunakan akun yang sudah disediakan admin untuk masuk.
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import AppButton from '@/components/common/AppButton.vue'
+import UiAlert from '@/components/common/UiAlert.vue'
 import { authService } from '@/services/auth'
 import { useAuthStore } from '@/stores/auth'
 
@@ -42,7 +63,12 @@ async function submit() {
   try {
     const res = await authService.login({ email: form.email, password: form.password })
     const payload = res.data.data
-    auth.setSession({ accessToken: payload.access_token, refreshToken: payload.refresh_token, user: payload.user })
+    const perms = await authService.permissions().catch(() => null)
+    auth.setSession({
+      accessToken: payload.access_token,
+      refreshToken: payload.refresh_token,
+      user: { ...payload.user, permissions: perms?.data.data.app_permissions || [] },
+    })
     router.push({ name: auth.defaultHomeRoute })
   } catch (e: any) {
     error.value = e?.response?.data?.error?.message || 'Login gagal'

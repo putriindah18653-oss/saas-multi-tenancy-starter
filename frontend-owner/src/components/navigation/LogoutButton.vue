@@ -1,6 +1,7 @@
 <template>
   <button
-    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+    type="button"
+    class="rounded-[var(--radius-button)] border border-[var(--border-strong)] bg-white/[0.03] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-white/10 hover:text-[var(--text-primary)]"
     @click="onLogout"
   >
     Logout
@@ -16,7 +17,9 @@ const auth = useAuthStore()
 
 async function onLogout() {
   try {
-    await authService.logout()
+    if (auth.refreshToken) {
+      await authService.logout(auth.refreshToken)
+    }
   } catch {
     // ignore network errors on logout UI
   }

@@ -19,7 +19,9 @@ const tenant = useTenantStore()
 
 async function onLogout() {
   try {
-    await authService.logout()
+    if (auth.refreshToken) {
+      await authService.logout(auth.refreshToken)
+    }
   } catch {
     // ignore network errors on logout UI
   }

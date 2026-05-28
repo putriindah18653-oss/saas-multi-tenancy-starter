@@ -15,16 +15,59 @@ function attachAuth(instance: AxiosInstance) {
   })
 }
 
+let refreshPromise: Promise<string | null> | null = null
+
+function refreshAccessToken() {
+  const auth = useAuthStore()
+  if (!auth.refreshToken) return Promise.resolve(null)
+
+  if (!refreshPromise) {
+    refreshPromise = authApi
+      .post('/auth/refresh', { refresh_token: auth.refreshToken })
+      .then((response) => {
+        const data = response.data.data
+        auth.setSession({
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          user: data.user ?? auth.user,
+        })
+        return data.access_token as string
+      })
+      .catch(() => {
+        auth.clearSession()
+        return null
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+
+  return refreshPromise
+}
+
 function attachUnauthorizedHandler(instance: AxiosInstance) {
   instance.interceptors.response.use(
     (response) => response,
-    (error: AxiosError) => {
+    async (error: AxiosError) => {
       const status = error.response?.status
-      if (status === 401) {
-        const auth = useAuthStore()
-        auth.clearSession()
-      }
+      const original = error.config as any
+
       if (status === 403 && (error.response?.data as any)?.error?.code === 'password_change_required') {
+        if (window.location.pathname !== '/auth/change-password') window.location.assign('/auth/change-password')
+        return Promise.reject(error)
+      }
+
+      if (status === 401 && !original?._retry && !original?.url?.includes('/auth/refresh')) {
+        original._retry = true
+        const token = await refreshAccessToken()
+        if (token) {
+          original.headers = original.headers || {}
+          original.headers.Authorization = `Bearer ${token}`
+          return instance(original)
+        }
+      }
+
+      if (status === 401) {
         const auth = useAuthStore()
         auth.clearSession()
       }

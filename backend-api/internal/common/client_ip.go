@@ -13,18 +13,10 @@ func ClientIP(r *http.Request, trustProxy bool) string {
 		return ""
 	}
 	if trustProxy {
-		if v := r.Header.Get("X-Forwarded-For"); v != "" {
-			for _, part := range strings.Split(v, ",") {
-				ip := strings.TrimSpace(part)
-				if parsed := net.ParseIP(ip); parsed != nil {
-					return parsed.String()
-				}
-			}
-		}
 		if v := strings.TrimSpace(r.Header.Get("X-Real-IP")); v != "" {
 			if parsed := net.ParseIP(v); parsed != nil {
-			return parsed.String()
-		}
+				return parsed.String()
+			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)

@@ -1,48 +1,71 @@
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-semibold text-slate-900">Tenants</h2>
+  <div class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 class="owner-page-title">Tenants</h2>
+        <p class="owner-page-subtitle">Kelola tenant platform dan status operasionalnya.</p>
+      </div>
       <RouterLink
         v-if="canCreate"
         to="/app/tenants/create"
-        class="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white"
+        class="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"
       >
         Create tenant
       </RouterLink>
     </div>
 
-    <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+    <UiAlert v-if="error" title="Failed to load tenants" tone="danger">{{ error }}</UiAlert>
 
-    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-50 text-left text-slate-600">
-          <tr>
-            <th class="px-4 py-3">Name</th>
-            <th class="px-4 py-3">Slug</th>
-            <th class="px-4 py-3">Status</th>
-            <th class="px-4 py-3">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="t in tenants" :key="t.id" class="border-t border-slate-100">
-            <td class="px-4 py-3">{{ t.name }}</td>
-            <td class="px-4 py-3">{{ t.slug }}</td>
-            <td class="px-4 py-3">{{ t.status }}</td>
-            <td class="px-4 py-3">
-              <RouterLink class="text-slate-900 underline" :to="`/app/tenants/${t.id}`">Detail</RouterLink>
-            </td>
-          </tr>
-          <tr v-if="!loading && tenants.length === 0">
-            <td colspan="4" class="px-4 py-6 text-center text-slate-500">No tenants found.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <AppCard>
+      <div v-if="loading" class="space-y-3">
+        <div v-for="i in 5" :key="i" class="h-12 animate-pulse rounded-[var(--radius-button)] bg-white/[0.05]" />
+      </div>
+
+      <UiEmptyState
+        v-else-if="tenants.length === 0"
+        title="No tenants found"
+        description="Create a tenant when your first customer workspace is ready."
+      >
+        <template #actions>
+          <RouterLink v-if="canCreate" to="/app/tenants/create" class="rounded-[var(--radius-button)] bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white">
+            Create tenant
+          </RouterLink>
+        </template>
+      </UiEmptyState>
+
+      <div v-else class="overflow-x-auto">
+        <table class="owner-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in tenants" :key="t.id">
+              <td class="font-medium text-[var(--text-primary)]">{{ t.name }}</td>
+              <td>{{ t.slug }}</td>
+              <td>
+                <span class="rounded-full border px-2 py-1 text-xs" :class="statusClass(t.status)">{{ t.status }}</span>
+              </td>
+              <td>
+                <RouterLink class="font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]" :to="`/app/tenants/${t.id}`">Detail</RouterLink>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </AppCard>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import AppCard from '@/components/common/AppCard.vue'
+import UiAlert from '@/components/common/UiAlert.vue'
+import UiEmptyState from '@/components/common/UiEmptyState.vue'
 import { tenantsService, type Tenant } from '@/services/tenants'
 import { useAuthStore } from '@/stores/auth'
 import { canOwner } from '@/services/rbac'
@@ -53,6 +76,12 @@ const loading = ref(false)
 const error = ref('')
 
 const canCreate = computed(() => canOwner(auth.user, 'app.tenants.create'))
+
+function statusClass(status: string) {
+  if (status === 'active') return 'border-emerald-400/25 bg-emerald-400/10 text-[var(--success)]'
+  if (status === 'deleted') return 'border-red-400/25 bg-red-400/10 text-[var(--danger)]'
+  return 'border-amber-400/25 bg-amber-400/10 text-[var(--warning)]'
+}
 
 async function load() {
   loading.value = true

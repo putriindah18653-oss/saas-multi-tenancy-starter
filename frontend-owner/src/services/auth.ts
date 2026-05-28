@@ -16,12 +16,18 @@ export const authService = {
     return authApi.post<AuthResponse>('/auth/login', payload)
   },
   refreshToken(refresh_token: string) {
-    return authApi.post<{ data: { access_token: string; refresh_token?: string } }>('/auth/refresh', { refresh_token })
+    return authApi.post<{ data: { user?: UserProfile; access_token: string; refresh_token?: string } }>('/auth/refresh', { refresh_token })
   },
-  logout() {
-    return authApi.post('/auth/logout')
+  logout(refresh_token: string) {
+    return authApi.post('/auth/logout', { refresh_token })
+  },
+  changePassword(payload: { current_password: string; new_password: string }) {
+    return authApi.post<{ data: { changed: boolean } }>('/me/password', payload)
   },
   me() {
     return authApi.get<{ data: UserProfile }>('/me')
+  },
+  permissions() {
+    return authApi.get<{ data: { app_permissions: string[] } }>('/me/permissions')
   },
 }

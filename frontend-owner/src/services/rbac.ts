@@ -40,6 +40,7 @@ export function isOwnerRole(role: string | undefined | null): role is OwnerRole 
 }
 
 export function getOwnerPermissions(user: UserProfile | null | undefined): OwnerPermission[] {
+  if (user?.permissions?.length) return user.permissions as OwnerPermission[]
   const role = user?.app_role
   if (!isOwnerRole(role)) return []
   return ownerRolePermissions[role]
