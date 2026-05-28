@@ -1,15 +1,25 @@
 # SaaS Multi-Tenancy Starter
 
-Starter monorepo untuk aplikasi SaaS multi-tenant dengan isolasi data tenant pada shared database.
+Monorepo starter SaaS multi-tenant dengan backend Go, PostgreSQL shared database, Redis, dan dua frontend Vue: owner console dan tenant console.
 
 ## Stack
 
-- Backend: Go (chi, pgxpool)
+- Backend: Go, chi, pgxpool
 - Database: PostgreSQL
 - Cache: Redis
-- Frontend owner: Vue 3 + Vite + TypeScript + Tailwind + Pinia
-- Frontend tenant: Vue 3 + Vite + TypeScript + Tailwind + Pinia
-- Deploy: Docker Compose
+- Frontend owner: Vue 3, Vite, TypeScript, Tailwind, Pinia
+- Frontend tenant: Vue 3, Vite, TypeScript, Tailwind, Pinia
+- Deploy/local dev: Docker Compose
+
+## Struktur repo
+
+```text
+backend-api/       Go API, migrations, upload storage
+frontend-owner/    Owner/app console
+frontend-tenant/   Tenant console
+docker-compose.yml Development stack
+docker-compose.prod.yml Production-style stack
+```
 
 ## Quick start development
 
@@ -17,17 +27,12 @@ Starter monorepo untuk aplikasi SaaS multi-tenant dengan isolasi data tenant pad
 cp .env.example .env
 docker compose config
 docker compose up -d postgres redis
-```
-
-Run migration dari `backend-api/migrations`, lalu jalankan app:
-
-```bash
 docker compose up --build
 ```
 
-Port:
+Port default:
 
-- Backend: http://localhost:8080
+- Backend API: http://localhost:8080
 - Owner frontend: http://localhost:5173
 - Tenant frontend: http://localhost:5174
 - PostgreSQL: localhost:5432
@@ -39,91 +44,52 @@ LAN access:
 - Tenant frontend: `http://<host-lan-ip>:5174`
 - Backend API: `http://<host-lan-ip>:8080`
 
-For local/LAN development, leave `VITE_API_BASE_URL` empty or unset so browser clients derive API host from the current frontend host. If you set `VITE_API_BASE_URL=http://localhost:8080/api/v1`, a phone or another LAN device will call its own localhost, not the dev machine.
+Untuk local/LAN development, biarkan `VITE_API_BASE_URL` kosong agar browser menurunkan API host dari host frontend saat ini. Jika diset ke `http://localhost:8080/api/v1`, device LAN lain akan memanggil localhost miliknya sendiri, bukan mesin dev.
 
-## Development with Docker hot reload
+Jika LAN IP berubah, set `VITE_HMR_HOST` sebelum start frontend:
 
-Default `docker-compose.yml` runs both frontends in Vite dev mode with bind-mounted source code and polling enabled, so edits on host are picked up inside containers.
+```bash
+VITE_HMR_HOST=<host-lan-ip> docker compose up -d frontend-owner frontend-tenant
+```
 
-Ports:
+## Development hot reload
 
-- Owner frontend: http://192.168.19.20:5173
-- Tenant frontend: http://192.168.19.20:5174
-- Backend API: http://192.168.19.20:8080
-
-Start dev stack:
+`docker-compose.yml` menjalankan kedua frontend dalam Vite dev mode dengan bind-mounted source dan polling enabled.
 
 ```bash
 docker compose up -d
-```
-
-Watch logs/HMR:
-
-```bash
 docker compose logs -f frontend-owner frontend-tenant
 ```
 
-Restart only frontends after dependency or config changes:
+Restart frontend setelah dependency/config berubah:
 
 ```bash
 docker compose up -d --force-recreate frontend-owner frontend-tenant
 ```
 
-If LAN IP changes, set `VITE_HMR_HOST` before starting:
-
-```bash
-VITE_HMR_HOST=192.168.19.20 docker compose up -d frontend-owner frontend-tenant
-```
-
-Current dev behavior:
+Catatan dev:
 
 - `frontend-owner` source mounted: `./frontend-owner:/app`
 - `frontend-tenant` source mounted: `./frontend-tenant:/app`
-- `node_modules` kept in Docker named volumes so host files are not polluted
-- `CHOKIDAR_USEPOLLING=true` for reliable file watching on Docker bind mounts
-- Vite HMR client points to LAN host via `VITE_HMR_HOST`
+- `node_modules` disimpan di Docker named volumes
+- `CHOKIDAR_USEPOLLING=true` untuk file watching di bind mounts
 
-## Onboarding flow
+## Seed login dan onboarding
 
-1. Run migrations. Migration hard-seed satu owner-app untuk local/demo:
+Migration seed membuat owner demo untuk local/dev:
 
 - Email: `owner@app.local`
 - Password: `DemoPass123!`
 
-Rotate password ini sebelum shared/prod.
+Rotate password sebelum shared/prod.
 
-2. Login ke endpoint:
+Flow awal:
 
-```text
-POST /api/v1/auth/login
-Content-Type: application/json
-Body: {"email":"owner@app.local","password": "***"}
-```
-
-Simpan `data.access_token`. Response login pakai field snake_case seperti `app_role` dan `tenant_memberships`.
-
-3. Owner-app buat tenant:
-
-```text
-POST /api/v1/app/tenants
-Authorization: Bearer ***
-Content-Type: application/json
-Body: {"name":"Tenant Alpha","slug":"tenant-alpha"}
-```
-
-Creator otomatis menjadi `owner-tenant` di tenant baru.
-
-4. Owner-tenant invite admin tenant:
-
-```text
-POST /api/v1/tenant/users/invite
-Authorization: Bearer ***
-X-Tenant-ID: <TENANT_ID>
-Content-Type: application/json
-Body: {"name":"Tenant Admin","email":"admin@tenant.local","role":"admin"}
-```
-
-Untuk user baru, response invite menyertakan `temporary_password`. Untuk email yang sudah ada, user hanya ditautkan/diaktifkan ke tenant dan `temporary_password` tidak dikirim.
+1. Login owner lewat owner frontend atau API `POST /api/v1/auth/login`.
+2. Buat tenant dari owner console.
+3. Creator otomatis menjadi `owner-tenant` di tenant baru.
+4. Invite user/admin tenant dari tenant user management.
+5. User baru menerima `temporary_password` sekali; jangan log atau share di tempat publik.
 
 ## Frontend routes
 
@@ -132,29 +98,67 @@ Owner frontend:
 - `/auth/login`
 - `/app`
 - `/app/tenants`
+- `/app/company-settings`
+- `/app/profile`
+- `/app/audit`
 
 Tenant frontend:
 
 - `/auth/login`
+- `/auth/change-password`
 - `/tenant`
+- `/tenant/profile`
 - `/tenant/users`
+- `/tenant/settings`
+- `/tenant/audit`
 
 Tenant frontend mengirim `Authorization` dan `X-Tenant-ID` otomatis dari selected tenant store.
 
-## Frontend UX notes
+## Fitur utama
 
-- Form auth sudah pakai `autocomplete` + placeholder aman.
-- Saat invite user tenant, temporary password ditampilkan sekali di UI jika backend membuat user baru.
-- Hindari menyimpan temporary password di log, screenshot, atau ticket publik.
+- Auth JWT access/refresh token.
+- Refresh token persistence, rotation, session revoke, logout revoke.
+- Forced password change untuk temporary password.
+- Redis-backed rate limit untuk login/refresh.
+- Owner tenant management.
+- Tenant user invite dan role-based access control.
+- Tenant settings: display name, logo URL, timezone, locale, currency.
+- Owner company settings dan logo upload.
+- Profile settings owner/tenant: nama, phone, address, bio, avatar upload, change password.
+- Owner dan tenant audit log UI/API.
+- Responsive sidebar dan top navigation untuk owner/tenant console.
+- Dark/light theme persistence.
 
-## Security notes
+## Uploads
 
-- Set `JWT_ACCESS_SECRET` dan `JWT_REFRESH_SECRET`; backend menolak start/token jika secret kosong.
-- Ganti/rotate password seeded owner sebelum shared/prod.
-- Jangan log password/token/secret.
-- Query tenant wajib filter `tenant_id`.
-- `X-Tenant-ID` wajib divalidasi ke membership user.
-- Gunakan HTTPS pada production.
+Backend menyimpan upload di `backend-api/storage/uploads`.
+
+Avatar/profile dan logo memakai upload endpoint backend, lalu frontend menyimpan path hasil upload seperti `/uploads/...`. Validasi keamanan tetap harus dilakukan di backend. Client hanya memberi validasi UX.
+
+## Build dan checks
+
+Frontend tenant:
+
+```bash
+cd frontend-tenant
+npm run build
+```
+
+Frontend owner:
+
+```bash
+cd frontend-owner
+npm run build
+```
+
+Backend:
+
+```bash
+cd backend-api
+go test ./...
+```
+
+Saat ini script test frontend belum tersedia. Tambahkan Vitest/Playwright bila butuh automated UI coverage.
 
 ## Production
 
@@ -164,7 +168,7 @@ docker compose -f docker-compose.prod.yml config
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Required env production:
+Env penting production:
 
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
@@ -172,16 +176,19 @@ Required env production:
 - `JWT_REFRESH_SECRET`
 - `CORS_ALLOWED_ORIGINS`
 
-## Next steps
+## Security notes
 
-- Observability metrics/tracing
-- E2E tests auth/tenant/user
-- CI lint/test/build + migration check
+- Set `JWT_ACCESS_SECRET` dan `JWT_REFRESH_SECRET`; jangan pakai secret kosong.
+- Ganti/rotate password seeded owner sebelum shared/prod.
+- Jangan log password, token, refresh token, temporary password, atau secret.
+- Query tenant wajib filter `tenant_id`.
+- `X-Tenant-ID` wajib divalidasi terhadap membership user.
+- Gunakan HTTPS pada production.
+- Batasi `CORS_ALLOWED_ORIGINS` sesuai domain deployment.
 
-## Security/features added after hardening
+## Roadmap singkat
 
-- Refresh token persistence, rotation, session list, and revoke on logout/session revoke.
-- Change password revokes active refresh sessions and clears temporary-password requirement.
-- Redis-backed rate limit for login and refresh endpoints.
-- Tenant settings API/UI for display name, logo URL, timezone, locale, and currency.
-- Owner and tenant audit log API/UI for security/admin actions.
+- CI lint/test/build + migration check.
+- Vitest component tests untuk profile/upload/sidebar/settings.
+- Playwright smoke tests untuk auth, tenant navigation, profile, settings.
+- Observability metrics/tracing.
