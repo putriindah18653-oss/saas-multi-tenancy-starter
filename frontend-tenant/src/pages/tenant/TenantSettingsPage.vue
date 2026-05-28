@@ -12,24 +12,31 @@
       <form class="grid gap-4" @submit.prevent="save">
         <label>
           <span class="tenant-label">Display name</span>
-          <input v-model="form.display_name" class="tenant-input" />
+          <input v-model.trim="form.display_name" class="tenant-input" maxlength="120" />
         </label>
         <label>
           <span class="tenant-label">Logo URL</span>
-          <input v-model="form.logo_url" class="tenant-input" placeholder="https://..." />
+          <input v-model.trim="form.logo_url" class="tenant-input" placeholder="https://..." inputmode="url" />
+          <span class="tenant-helper">Opsional. Harus URL http/https valid.</span>
         </label>
         <div class="grid gap-4 md:grid-cols-3">
           <label>
             <span class="tenant-label">Timezone</span>
-            <input v-model="form.timezone" class="tenant-input" />
+            <select v-model="form.timezone" class="tenant-input">
+              <option v-for="timezone in timezoneOptions" :key="timezone" :value="timezone">{{ timezone }}</option>
+            </select>
           </label>
           <label>
             <span class="tenant-label">Locale</span>
-            <input v-model="form.locale" class="tenant-input" />
+            <select v-model="form.locale" class="tenant-input">
+              <option v-for="locale in localeOptions" :key="locale" :value="locale">{{ locale }}</option>
+            </select>
           </label>
           <label>
             <span class="tenant-label">Currency</span>
-            <input v-model="form.currency" class="tenant-input" />
+            <select v-model="form.currency" class="tenant-input">
+              <option v-for="currency in currencyOptions" :key="currency" :value="currency">{{ currency }}</option>
+            </select>
           </label>
         </div>
         <button class="w-fit rounded-[var(--tenant-radius-button)] bg-[var(--tenant-accent)] px-4 py-2 text-sm font-medium text-slate-950 hover:bg-[var(--tenant-accent-hover)] disabled:opacity-60" :disabled="loading">
@@ -46,10 +53,31 @@ import AppCard from '@/components/common/AppCard.vue'
 import UiAlert from '@/components/common/UiAlert.vue'
 import { tenantSettingsService, type TenantSettings } from '@/services/tenantSettings'
 
+const timezoneOptions = ['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura', 'UTC']
+const localeOptions = ['id-ID', 'en-US']
+const currencyOptions = ['IDR', 'USD']
+
 const loading = ref(false)
 const error = ref('')
 const saved = ref(false)
 const form = reactive<Partial<TenantSettings>>({ display_name: '', logo_url: '', timezone: 'Asia/Jakarta', locale: 'id-ID', currency: 'IDR' })
+
+function validateSettings() {
+  if (form.logo_url) {
+    try {
+      const url = new URL(form.logo_url)
+      if (!['http:', 'https:'].includes(url.protocol)) return 'Logo URL harus memakai http atau https.'
+    } catch {
+      return 'Logo URL tidak valid.'
+    }
+  }
+
+  if (!timezoneOptions.includes(form.timezone || '')) return 'Timezone tidak valid.'
+  if (!localeOptions.includes(form.locale || '')) return 'Locale tidak valid.'
+  if (!currencyOptions.includes(form.currency || '')) return 'Currency tidak valid.'
+
+  return ''
+}
 
 async function load() {
   loading.value = true
@@ -64,6 +92,13 @@ async function load() {
   }
 }
 async function save() {
+  const validationError = validateSettings()
+  if (validationError) {
+    error.value = validationError
+    saved.value = false
+    return
+  }
+
   loading.value = true
   error.value = ''
   saved.value = false

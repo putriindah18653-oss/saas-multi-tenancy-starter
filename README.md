@@ -41,6 +41,48 @@ LAN access:
 
 For local/LAN development, leave `VITE_API_BASE_URL` empty or unset so browser clients derive API host from the current frontend host. If you set `VITE_API_BASE_URL=http://localhost:8080/api/v1`, a phone or another LAN device will call its own localhost, not the dev machine.
 
+## Development with Docker hot reload
+
+Default `docker-compose.yml` runs both frontends in Vite dev mode with bind-mounted source code and polling enabled, so edits on host are picked up inside containers.
+
+Ports:
+
+- Owner frontend: http://192.168.19.20:5173
+- Tenant frontend: http://192.168.19.20:5174
+- Backend API: http://192.168.19.20:8080
+
+Start dev stack:
+
+```bash
+docker compose up -d
+```
+
+Watch logs/HMR:
+
+```bash
+docker compose logs -f frontend-owner frontend-tenant
+```
+
+Restart only frontends after dependency or config changes:
+
+```bash
+docker compose up -d --force-recreate frontend-owner frontend-tenant
+```
+
+If LAN IP changes, set `VITE_HMR_HOST` before starting:
+
+```bash
+VITE_HMR_HOST=192.168.19.20 docker compose up -d frontend-owner frontend-tenant
+```
+
+Current dev behavior:
+
+- `frontend-owner` source mounted: `./frontend-owner:/app`
+- `frontend-tenant` source mounted: `./frontend-tenant:/app`
+- `node_modules` kept in Docker named volumes so host files are not polluted
+- `CHOKIDAR_USEPOLLING=true` for reliable file watching on Docker bind mounts
+- Vite HMR client points to LAN host via `VITE_HMR_HOST`
+
 ## Onboarding flow
 
 1. Run migrations. Migration hard-seed satu owner-app untuk local/demo:
@@ -55,7 +97,7 @@ Rotate password ini sebelum shared/prod.
 ```text
 POST /api/v1/auth/login
 Content-Type: application/json
-Body: {"email":"owner@app.local","password":"DemoPass123!"}
+Body: {"email":"owner@app.local","password": "***"}
 ```
 
 Simpan `data.access_token`. Response login pakai field snake_case seperti `app_role` dan `tenant_memberships`.
@@ -64,7 +106,7 @@ Simpan `data.access_token`. Response login pakai field snake_case seperti `app_r
 
 ```text
 POST /api/v1/app/tenants
-Authorization: Bearer <TOKEN>
+Authorization: Bearer ***
 Content-Type: application/json
 Body: {"name":"Tenant Alpha","slug":"tenant-alpha"}
 ```
@@ -75,7 +117,7 @@ Creator otomatis menjadi `owner-tenant` di tenant baru.
 
 ```text
 POST /api/v1/tenant/users/invite
-Authorization: Bearer <TOKEN>
+Authorization: Bearer ***
 X-Tenant-ID: <TENANT_ID>
 Content-Type: application/json
 Body: {"name":"Tenant Admin","email":"admin@tenant.local","role":"admin"}

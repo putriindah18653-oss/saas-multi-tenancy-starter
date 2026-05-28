@@ -1,9 +1,9 @@
 <template>
-  <div class="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)]">
-    <TopNav title="Owner dashboard" />
-    <div class="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[240px_1fr]">
-      <AppSidebar :items="items" />
-      <main class="min-w-0">
+  <div class="app-shell">
+    <AppSidebar :items="items" />
+    <div class="app-main" :class="{ 'app-main--collapsed': ui.sidebarCollapsed }">
+      <TopNav title="Dashboard Owner" />
+      <main class="content">
         <RouterView />
       </main>
     </div>
@@ -13,10 +13,13 @@
 <script setup lang="ts">
 import TopNav from '@/components/navigation/TopNav.vue'
 import AppSidebar from '@/components/navigation/AppSidebar.vue'
+import { useUiStore } from '@/stores/ui'
+
+const ui = useUiStore()
 
 const items = [
-  { to: '/app', label: 'Dashboard' },
-  { to: '/app/tenants', label: 'Tenants' },
-  { to: '/app/audit', label: 'Audit Log' },
+  { to: '/app', label: 'Dashboard', icon: '▦' },
+  { to: '/app/tenants', label: 'Tenants', icon: '◉', children: true },
+  { to: '/app/audit', label: 'Audit Log', icon: '◇' },
 ]
 </script>

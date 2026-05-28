@@ -28,7 +28,7 @@
     <UiAlert v-if="error" title="Failed to load tenant users" tone="danger">{{ error }}</UiAlert>
     <UiAlert v-if="!tenant.selectedTenantId" title="Tenant belum dipilih" tone="warning">Pilih tenant dulu dari switcher kanan atas untuk mengelola user.</UiAlert>
 
-    <UserInviteForm v-if="canInvite" @invited="onInvited" />
+    <UserInviteForm v-if="canInvite" :allowed-roles="assignableRoles" @invited="onInvited" />
 
     <AppCard v-if="tenant.selectedTenantId">
       <div class="overflow-x-auto">
@@ -52,15 +52,14 @@
               <td>
                 <select
                   :value="m.role"
-                  :disabled="!canUpdate || loading"
+                  :disabled="!canChangeMemberRole(m)"
                   class="tenant-input max-w-[180px]"
                   @change="changeRole(m.id, ($event.target as HTMLSelectElement).value)"
                 >
-                  <option value="owner-tenant">owner-tenant</option>
-                  <option value="admin">admin</option>
-                  <option value="finance">finance</option>
-                  <option value="support">support</option>
+                  <option v-for="role in memberRoleOptions(m)" :key="role.value" :value="role.value">{{ role.label }}</option>
                 </select>
+                <p v-if="isSelf(m)" class="mt-1 text-xs text-[var(--tenant-text-muted)]">Own role protected.</p>
+                <p v-else-if="isLastActiveOwner(m)" class="mt-1 text-xs text-[var(--tenant-text-muted)]">Last owner protected.</p>
               </td>
               <td>
                 <span class="rounded-full border border-[var(--tenant-border)] px-2 py-1 text-xs" :class="m.is_active ? 'text-[var(--tenant-success)]' : 'text-[var(--tenant-text-muted)]'">
@@ -70,7 +69,7 @@
               <td>
                 <button
                   v-if="canRemove"
-                  :disabled="loading || !m.is_active"
+                  :disabled="!canRemoveMember(m)"
                   class="rounded-[var(--tenant-radius-button)] border border-red-400/30 px-3 py-1.5 text-sm text-[var(--tenant-danger)] disabled:cursor-not-allowed disabled:opacity-50"
                   @click="removeMember(m.id)"
                 >
@@ -97,11 +96,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 import AppCard from '@/components/common/AppCard.vue'
 import UiAlert from '@/components/common/UiAlert.vue'
 import UiEmptyState from '@/components/common/UiEmptyState.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { tenantUsersService, type TenantMember } from '@/services/tenantUsers'
-import { canTenant } from '@/services/rbac'
+import { canTenant, isTenantOwnerRole, TENANT_ROLE_OPTIONS, type TenantRole } from '@/services/rbac'
 import UserInviteForm from '@/components/tenant-users/UserInviteForm.vue'
 
+const auth = useAuthStore()
 const tenant = useTenantStore()
 const members = ref<TenantMember[]>([])
 const loading = ref(false)
@@ -113,6 +114,38 @@ const copied = ref(false)
 const canInvite = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.invite'))
 const canUpdate = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.update'))
 const canRemove = computed(() => canTenant(tenant.selectedMembership, 'tenant.users.remove'))
+const isCurrentUserOwner = computed(() => isTenantOwnerRole(tenant.selectedMembership?.role))
+const activeOwnerCount = computed(() => members.value.filter((member) => member.is_active && isTenantOwnerRole(member.role)).length)
+const assignableRoles = computed<TenantRole[]>(() => {
+  const roles = TENANT_ROLE_OPTIONS.map((role) => role.value)
+  return isCurrentUserOwner.value ? roles : roles.filter((role) => !isTenantOwnerRole(role))
+})
+
+function isSelf(member: TenantMember) {
+  return member.user_id === auth.user?.id
+}
+
+function isLastActiveOwner(member: TenantMember) {
+  return member.is_active && isTenantOwnerRole(member.role) && activeOwnerCount.value <= 1
+}
+
+function canAssignRole(role: string) {
+  return assignableRoles.value.includes(role as TenantRole)
+}
+
+function canChangeMemberRole(member: TenantMember) {
+  return canUpdate.value && !loading.value && member.is_active && !isSelf(member) && !isLastActiveOwner(member)
+}
+
+function canRemoveMember(member: TenantMember) {
+  return canRemove.value && !loading.value && member.is_active && !isSelf(member) && !isLastActiveOwner(member)
+}
+
+function memberRoleOptions(member: TenantMember) {
+  const values = new Set<TenantRole>(assignableRoles.value)
+  if (isTenantOwnerRole(member.role) && !isCurrentUserOwner.value) values.add(member.role as TenantRole)
+  return TENANT_ROLE_OPTIONS.filter((role) => values.has(role.value))
+}
 
 async function load() {
   if (!tenant.selectedTenantId) {
@@ -133,6 +166,28 @@ async function load() {
 
 async function changeRole(id: string, role: string) {
   if (!canUpdate.value) return
+  const member = members.value.find((item) => item.id === id)
+  if (!member) return
+  if (member.role === role) return
+  if (!canChangeMemberRole(member)) {
+    error.value = 'This member role is protected.'
+    await load()
+    return
+  }
+  if (!canAssignRole(role)) {
+    error.value = 'Role is not allowed for your access level.'
+    await load()
+    return
+  }
+  if (isTenantOwnerRole(member.role) && !isTenantOwnerRole(role) && isLastActiveOwner(member)) {
+    error.value = 'At least one active tenant owner is required.'
+    await load()
+    return
+  }
+  if (!confirm(`Change ${member.email} role from ${member.role} to ${role}?`)) {
+    await load()
+    return
+  }
   loading.value = true
   error.value = ''
   try {
@@ -147,7 +202,13 @@ async function changeRole(id: string, role: string) {
 
 async function removeMember(id: string) {
   if (!canRemove.value) return
-  if (!confirm('Remove this member from tenant?')) return
+  const member = members.value.find((item) => item.id === id)
+  if (!member) return
+  if (!canRemoveMember(member)) {
+    error.value = isSelf(member) ? 'You cannot remove your own tenant access.' : 'This member is protected.'
+    return
+  }
+  if (!confirm(`Remove ${member.email} from tenant?`)) return
   loading.value = true
   error.value = ''
   try {

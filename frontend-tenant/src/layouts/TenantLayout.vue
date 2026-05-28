@@ -1,13 +1,13 @@
 <template>
-  <div class="min-h-screen bg-[var(--tenant-bg-app)] text-[var(--tenant-text-primary)]">
-    <TopNav title="Tenant dashboard">
-      <template #actions>
-        <TenantSwitcher />
-      </template>
-    </TopNav>
-    <div class="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[240px_1fr]">
-      <AppSidebar :items="items" />
-      <main class="min-w-0">
+  <div class="app-shell">
+    <AppSidebar :items="visibleItems" />
+    <div class="app-main" :class="{ 'app-main--collapsed': ui.sidebarCollapsed }">
+      <TopNav title="Dashboard Tenant">
+        <template #actions>
+          <TenantSwitcher />
+        </template>
+      </TopNav>
+      <main class="content">
         <RouterView />
       </main>
     </div>
@@ -15,14 +15,30 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import TopNav from '@/components/navigation/TopNav.vue'
 import AppSidebar from '@/components/navigation/AppSidebar.vue'
 import TenantSwitcher from '@/components/navigation/TenantSwitcher.vue'
+import { canTenant, type TenantPermission } from '@/services/rbac'
+import { useTenantStore } from '@/stores/tenant'
+import { useUiStore } from '@/stores/ui'
 
-const items = [
-  { to: '/tenant', label: 'Dashboard' },
-  { to: '/tenant/users', label: 'Users' },
-  { to: '/tenant/settings', label: 'Settings' },
-  { to: '/tenant/audit', label: 'Audit Log' },
+const ui = useUiStore()
+const tenant = useTenantStore()
+
+type SidebarItem = {
+  to: string
+  label: string
+  icon: string
+  permission: TenantPermission
+}
+
+const items: SidebarItem[] = [
+  { to: '/tenant', label: 'Dashboard', icon: '▦', permission: 'tenant.dashboard.read' },
+  { to: '/tenant/users', label: 'Users', icon: '👥', permission: 'tenant.users.read' },
+  { to: '/tenant/settings', label: 'Settings', icon: '⚙', permission: 'tenant.settings.read' },
+  { to: '/tenant/audit', label: 'Audit Log', icon: '◇', permission: 'tenant.audit.read' },
 ]
+
+const visibleItems = computed(() => items.filter((item) => canTenant(tenant.selectedMembership, item.permission)))
 </script>

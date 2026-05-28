@@ -45,6 +45,18 @@ function refreshAccessToken() {
   return refreshPromise
 }
 
+function isAuthRefreshUrl(url: string | undefined) {
+  return !!url && url.includes('/auth/refresh')
+}
+
+function shouldRefreshUnauthorized(error: AxiosError, original: any) {
+  if (error.response?.status !== 401) return false
+  if (original?._retry || isAuthRefreshUrl(original?.url)) return false
+
+  const auth = useAuthStore()
+  return !!auth.accessToken && !!auth.refreshToken
+}
+
 function attachUnauthorizedHandler(instance: AxiosInstance) {
   instance.interceptors.response.use(
     (response) => response,
@@ -57,7 +69,7 @@ function attachUnauthorizedHandler(instance: AxiosInstance) {
         return Promise.reject(error)
       }
 
-      if (status === 401 && !original?._retry && !original?.url?.includes('/auth/refresh')) {
+      if (shouldRefreshUnauthorized(error, original)) {
         original._retry = true
         const token = await refreshAccessToken()
         if (token) {

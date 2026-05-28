@@ -51,14 +51,24 @@ function resolveRouteScope(to: RouteLocationNormalized): string | undefined {
   return [...to.matched].reverse().find((record) => record.meta.scope)?.meta.scope as string | undefined
 }
 
-router.beforeEach((to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
+router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
   const auth = useAuthStore()
 
+  // Restore session only when navigating to protected routes
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    next({ name: 'auth-login' })
-    return
+    if (auth.refreshToken) {
+      const restored = await auth.tryRestoreSession()
+      if (!restored) {
+        next({ name: 'auth-login' })
+        return
+      }
+    } else {
+      next({ name: 'auth-login' })
+      return
+    }
   }
 
+  // For guest-only pages, redirect if already authenticated (no async restore here)
   if (to.meta.guestOnly && auth.isAuthenticated) {
     next({ name: auth.defaultHomeRoute })
     return

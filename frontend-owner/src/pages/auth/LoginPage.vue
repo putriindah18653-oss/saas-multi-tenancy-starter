@@ -63,11 +63,10 @@ async function submit() {
   try {
     const res = await authService.login({ email: form.email, password: form.password })
     const payload = res.data.data
-    const perms = await authService.permissions().catch(() => null)
     auth.setSession({
       accessToken: payload.access_token,
       refreshToken: payload.refresh_token,
-      user: { ...payload.user, permissions: perms?.data.data.app_permissions || [] },
+      user: payload.user,
     })
     router.push({ name: auth.defaultHomeRoute })
   } catch (e: any) {

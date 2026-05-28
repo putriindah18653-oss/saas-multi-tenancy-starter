@@ -12,6 +12,7 @@ import TenantNotFoundPage from '@/pages/errors/TenantNotFoundPage.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { canTenant, type TenantPermission } from '@/services/rbac'
+import { hydrateSession } from '@/services/session'
 
 const routes = [
   { path: '/', redirect: '/auth/login' },
@@ -52,9 +53,13 @@ function resolveRouteScope(to: RouteLocationNormalized): string | undefined {
   return [...to.matched].reverse().find((record) => record.meta.scope)?.meta.scope as string | undefined
 }
 
-router.beforeEach((to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
+router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
   const auth = useAuthStore()
   const tenant = useTenantStore()
+
+  if (!auth.hydrated && (to.meta.requiresAuth || auth.refreshToken)) {
+    await hydrateSession()
+  }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     next({ name: 'auth-login' })

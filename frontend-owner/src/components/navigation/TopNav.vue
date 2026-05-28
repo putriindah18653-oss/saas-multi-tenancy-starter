@@ -1,26 +1,92 @@
 <template>
-  <header class="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg-app)]/85 backdrop-blur-xl">
-    <div class="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button type="button" class="topbar-action hamburger" aria-label="Open sidebar" @click="ui.openMobileSidebar">
+        ☰
+      </button>
       <div>
-        <p class="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Control Panel</p>
-        <h1 class="text-base font-semibold text-[var(--text-primary)]">{{ title }}</h1>
+        <p class="topbar-eyebrow">Owner Control Center</p>
+        <h1 class="topbar-title">{{ title }}</h1>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <slot name="actions" />
+
+      <div class="topbar-clock">
+        <span>{{ formattedDate }}</span>
+        <strong>{{ formattedTime }}</strong>
       </div>
 
-      <div class="flex items-center gap-3">
-        <slot name="actions" />
-        <div class="hidden rounded-full border border-[var(--border)] bg-white/[0.03] px-3 py-1.5 text-sm text-[var(--text-secondary)] md:block">
-          {{ auth.user?.email || 'guest' }}
+      <button type="button" class="topbar-action" title="Layar Penuh" aria-label="Toggle fullscreen" @click="toggleFullscreen">
+        ⛶
+      </button>
+      <button type="button" class="topbar-action" title="Tema" aria-label="Toggle theme" @click="ui.toggleTheme">
+        {{ ui.theme === 'dark' ? '☀' : '☾' }}
+      </button>
+      <button type="button" class="topbar-action topbar-action--notify" title="Notifications" aria-label="Notifications">
+        🔔
+        <span />
+      </button>
+
+      <div class="topbar-profile">
+        <button type="button" class="topbar-avatar" aria-label="Profile">
+          {{ initials }}
+        </button>
+        <div class="topbar-profile-copy">
+          <p>{{ auth.user?.full_name || 'Owner' }}</p>
+          <span>{{ auth.user?.email || 'guest' }}</span>
         </div>
-        <LogoutButton />
       </div>
+
+      <LogoutButton />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import LogoutButton from '@/components/navigation/LogoutButton.vue'
 
 defineProps<{ title: string }>()
 const auth = useAuthStore()
+const ui = useUiStore()
+const now = ref(new Date())
+let timer: number | undefined
+
+const formattedDate = computed(() =>
+  new Intl.DateTimeFormat('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(now.value),
+)
+const formattedTime = computed(() =>
+  new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(now.value),
+)
+const initials = computed(() => {
+  const source = auth.user?.full_name || auth.user?.email || 'Owner'
+  return source
+    .split(/\s+|@/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'OW'
+})
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.()
+    return
+  }
+  document.exitFullscreen?.()
+}
+
+onMounted(() => {
+  timer = window.setInterval(() => {
+    now.value = new Date()
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (timer) window.clearInterval(timer)
+})
 </script>

@@ -18,12 +18,16 @@ func NewMeHandler(a *auth.Service, r *rbac.Service) *MeHandler { return &MeHandl
 func (h *MeHandler) Permissions(w http.ResponseWriter, r *http.Request) {
 	ac, _ := middleware.AuthFromContext(r.Context())
 	app, _ := h.rbac.AppPermissions(r.Context(), ac.AppRole)
-	tc, _ := middleware.TenantFromContext(r.Context())
+	tc, ok := middleware.TenantFromContext(r.Context())
+	tenantRole := ""
 	ten := []string{}
-	if tc.Role != "" {
-		ten, _ = h.rbac.TenantPermissions(r.Context(), tc.Role)
+	if ok {
+		tenantRole = tc.Role
+		if tc.Role != "" {
+			ten, _ = h.rbac.TenantPermissions(r.Context(), tc.Role)
+		}
 	}
-	response.Success(w, r, 200, map[string]any{"app_role": ac.AppRole, "tenant_role": tc.Role, "app_permissions": app, "tenant_permissions": ten})
+	response.Success(w, r, 200, map[string]any{"app_role": ac.AppRole, "tenant_role": tenantRole, "app_permissions": app, "tenant_permissions": ten})
 }
 func (h *MeHandler) Tenants(w http.ResponseWriter, r *http.Request) {
 	ac, _ := middleware.AuthFromContext(r.Context())

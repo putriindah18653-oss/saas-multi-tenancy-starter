@@ -9,29 +9,64 @@ export type UserProfile = {
   must_change_password?: boolean
 }
 
+const REFRESH_TOKEN_KEY = 'refresh_token'
+
+function readStoredRefreshToken() {
+  const token = localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY)
+  if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token)
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+  return token
+}
+
+function persistRefreshToken(token: string | null) {
+  if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token)
+  else localStorage.removeItem(REFRESH_TOKEN_KEY)
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null)
-  const refreshToken = ref<string | null>(sessionStorage.getItem('refresh_token'))
+  const refreshToken = ref<string | null>(readStoredRefreshToken())
   const user = ref<UserProfile | null>(null)
+  const hydrated = ref(false)
+  const hydrating = ref(false)
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const defaultHomeRoute = computed(() => 'tenant-home')
 
-  function setSession(payload: { accessToken: string; refreshToken?: string; user?: UserProfile | null }) {
+  function setSession(payload: { accessToken: string; refreshToken?: string | null; user?: UserProfile | null }) {
     accessToken.value = payload.accessToken
-    if (payload.refreshToken) {
+    if (payload.refreshToken !== undefined) {
       refreshToken.value = payload.refreshToken
-      sessionStorage.setItem('refresh_token', payload.refreshToken)
+      persistRefreshToken(payload.refreshToken)
     }
     if (payload.user !== undefined) user.value = payload.user
+  }
+
+  function setHydrationState(payload: { hydrated?: boolean; hydrating?: boolean }) {
+    if (payload.hydrated !== undefined) hydrated.value = payload.hydrated
+    if (payload.hydrating !== undefined) hydrating.value = payload.hydrating
   }
 
   function clearSession() {
     accessToken.value = null
     refreshToken.value = null
-    sessionStorage.removeItem('refresh_token')
+    persistRefreshToken(null)
     user.value = null
+    hydrated.value = true
+    hydrating.value = false
   }
 
-  return { accessToken, refreshToken, user, isAuthenticated, defaultHomeRoute, setSession, clearSession }
+  return {
+    accessToken,
+    refreshToken,
+    user,
+    hydrated,
+    hydrating,
+    isAuthenticated,
+    defaultHomeRoute,
+    setSession,
+    setHydrationState,
+    clearSession,
+  }
 })

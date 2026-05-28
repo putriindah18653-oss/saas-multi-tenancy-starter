@@ -4,6 +4,24 @@ export const TENANT_ROLES = ['owner-tenant', 'admin', 'finance', 'support', 'ten
 
 export type TenantRole = (typeof TENANT_ROLES)[number]
 
+export const TENANT_ROLE_OPTIONS: Array<{ value: TenantRole; label: string }> = [
+  { value: 'owner-tenant', label: 'owner-tenant' },
+  { value: 'admin', label: 'admin' },
+  { value: 'finance', label: 'finance' },
+  { value: 'support', label: 'support' },
+  { value: 'manager', label: 'manager' },
+  { value: 'staff', label: 'staff' },
+  { value: 'viewer', label: 'viewer' },
+  { value: 'tenant_owner', label: 'tenant_owner' },
+  { value: 'tenant_admin', label: 'tenant_admin' },
+]
+
+export const TENANT_OWNER_ROLES: TenantRole[] = ['owner-tenant', 'tenant_owner']
+
+export function isTenantOwnerRole(role: string | undefined | null): boolean {
+  return isTenantRole(role) && TENANT_OWNER_ROLES.includes(role)
+}
+
 export type TenantPermission =
   | 'tenant.dashboard.read'
   | 'tenant.users.read'

@@ -42,7 +42,7 @@ function refreshAccessToken() {
         const data = response.data.data
         auth.setSession({
           accessToken: data.access_token,
-          refreshToken: data.refresh_token,
+          refreshToken: data.refresh_token ?? auth.refreshToken,
           user: data.user ?? auth.user,
         })
         return data.access_token as string

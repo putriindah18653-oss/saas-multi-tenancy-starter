@@ -19,10 +19,7 @@
     <label class="block max-w-xs">
       <span class="tenant-label">Role</span>
       <select v-model="form.role" class="tenant-input">
-        <option value="admin">admin</option>
-        <option value="finance">finance</option>
-        <option value="support">support</option>
-        <option value="owner-tenant">owner-tenant</option>
+        <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
       </select>
     </label>
 
@@ -35,14 +32,28 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import UiAlert from '@/components/common/UiAlert.vue'
 import { tenantUsersService } from '@/services/tenantUsers'
+import { TENANT_ROLE_OPTIONS, type TenantRole } from '@/services/rbac'
 
 const emit = defineEmits<{ invited: [payload: { message: string; temporaryPassword: string }] }>()
+const props = withDefaults(defineProps<{ allowedRoles?: TenantRole[] }>(), {
+  allowedRoles: () => ['admin', 'finance', 'support', 'manager', 'staff', 'viewer'],
+})
 const loading = ref(false)
 const error = ref('')
 const form = reactive({ name: '', email: '', role: 'support' })
+
+const roleOptions = computed(() => TENANT_ROLE_OPTIONS.filter((role) => props.allowedRoles.includes(role.value)))
+
+watch(
+  roleOptions,
+  (roles) => {
+    if (!roles.some((role) => role.value === form.role)) form.role = roles[0]?.value || 'support'
+  },
+  { immediate: true },
+)
 
 async function submit() {
   loading.value = true

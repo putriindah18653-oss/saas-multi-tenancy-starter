@@ -15,7 +15,7 @@ func RBACRoutes(a *auth.Service, s *rbac.Service) DomainRegistrar {
 			pr.Use(middleware.RequireAuth(a))
 			pr.Use(middleware.RequirePasswordChanged(a))
 			pr.Get("/me/tenants", h.Tenants)
-			pr.With(middleware.RequireTenantAccess(s)).Get("/me/permissions", h.Permissions)
+			pr.Get("/me/permissions", h.Permissions)
 		})
 	}
 }
