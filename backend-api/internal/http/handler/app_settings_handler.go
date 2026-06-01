@@ -38,7 +38,9 @@ func (h *AppSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ac, ok := middleware.AuthFromContext(r.Context()); ok && h.audit != nil {
-		_ = h.audit.Log(r.Context(), ac.UserID, "", "app.settings.update", "app_settings", "", map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
+		if err := h.audit.Log(r.Context(), ac.UserID, "", "app.settings.update", "app_settings", "", map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
+			response.LogError(r, "audit write failed", "action", "app.settings.update", "error", err)
+		}
 	}
 	response.Success(w, r, 200, v)
 }

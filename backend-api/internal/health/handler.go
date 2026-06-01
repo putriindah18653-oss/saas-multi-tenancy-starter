@@ -18,6 +18,8 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, r, http.StatusOK, map[string]any{"status": "ok", "service": "api"})
 }
 
+// Ready checks database and Redis connectivity. Both healthy → 200.
+// Either unhealthy → 503 with success:false and per-dependency status.
 func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
@@ -31,12 +33,14 @@ func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
 		checks["redis"] = "unavailable"
 		ready = false
 	}
-	data := map[string]any{"checks": checks}
 	if !ready {
-		data["status"] = "not_ready"
-		response.JSON(w, http.StatusServiceUnavailable, response.Envelope{Success: false, Data: data, Error: &response.ErrorBody{Code: "not_ready", Message: "service dependencies are unavailable"}, RequestID: response.RequestID(r)})
+		response.JSON(w, http.StatusServiceUnavailable, response.Envelope{
+			Success: false,
+			Data:    map[string]any{"status": "not_ready", "checks": checks},
+			Error:   &response.ErrorBody{Code: "not_ready", Message: "service dependencies are unavailable"},
+			RequestID: response.RequestID(r),
+		})
 		return
 	}
-	data["status"] = "ready"
-	response.Success(w, r, http.StatusOK, data)
+	response.Success(w, r, http.StatusOK, map[string]any{"status": "ready", "checks": checks})
 }

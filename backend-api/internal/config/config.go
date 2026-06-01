@@ -77,6 +77,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("JWT_REFRESH_SECRET is required")
 	}
 	if !c.IsDevelopment() {
+		if len(c.JWT.AccessSecret) < 32 || len(c.JWT.RefreshSecret) < 32 {
+			return fmt.Errorf("JWT secrets must be at least 32 characters in non-development environments")
+		}
 		for _, origin := range c.CORS.AllowedOrigins {
 			if origin == "*" {
 				return fmt.Errorf("CORS wildcard is not allowed outside development")

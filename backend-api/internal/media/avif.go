@@ -32,7 +32,6 @@ type ConvertOptions struct {
 
 type Result struct {
 	Filename string `json:"filename"`
-	DiskPath string `json:"disk_path"`
 	URLPath  string `json:"url_path"`
 	Size     int64  `json:"size"`
 }
@@ -113,7 +112,40 @@ func (p AVIFProcessor) ConvertUpload(ctx context.Context, file multipart.File, h
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{Filename: filename, DiskPath: outPath, URLPath: "/uploads/" + subdir + "/" + filename, Size: st.Size()}, nil
+	return Result{Filename: filename, URLPath: "/uploads/" + subdir + "/" + filename, Size: st.Size()}, nil
+}
+
+func (p AVIFProcessor) Serve(w http.ResponseWriter, r *http.Request, path string) {
+	if p.RootDir == "" {
+		p.RootDir = "storage/uploads"
+	}
+	f, err := os.Open(filepath.Join(p.RootDir, cleanPath(path)))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	// ServeContent supports Range requests, ETag, If-None-Match, and
+	// If-Modified-Since — enabling CDN- and browser-level caching.
+	http.ServeContent(w, r, filepath.Base(path), st.ModTime(), f)
+}
+
+func cleanPath(v string) string {
+	v = strings.Trim(strings.ReplaceAll(v, "\\", "/"), "/")
+	parts := strings.Split(v, "/")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" && part != "." && part != ".." {
+			cleaned = append(cleaned, part)
+		}
+	}
+	return strings.Join(cleaned, "/")
 }
 
 func randomID(n int) (string, error) {

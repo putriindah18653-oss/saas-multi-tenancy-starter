@@ -13,7 +13,7 @@ func RBACRoutes(a *auth.Service, s *rbac.Service) DomainRegistrar {
 		h := handler.NewMeHandler(a, s)
 		r.Group(func(pr chi.Router) {
 			pr.Use(middleware.RequireAuth(a))
-			pr.Use(middleware.RequirePasswordChanged(a))
+			pr.Use(middleware.RequirePasswordChanged())
 			pr.Get("/me/tenants", h.Tenants)
 			pr.Get("/me/permissions", h.Permissions)
 		})

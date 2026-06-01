@@ -40,7 +40,9 @@ func (h *TenantSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ac, ok := middleware.AuthFromContext(r.Context()); ok && h.audit != nil {
-		_ = h.audit.Log(r.Context(), ac.UserID, tc.TenantID, "tenant.settings.update", "tenant_settings", tc.TenantID, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
+		if err := h.audit.Log(r.Context(), ac.UserID, tc.TenantID, "tenant.settings.update", "tenant_settings", tc.TenantID, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
+			response.LogError(r, "audit write failed", "action", "tenant.settings.update", "error", err)
+		}
 	}
 	response.Success(w, r, 200, v)
 }

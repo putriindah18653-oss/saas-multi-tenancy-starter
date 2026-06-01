@@ -2,6 +2,9 @@ package middleware
 
 import "net/http"
 
+// SecurityHeaders sets recommended HTTP security headers on every response.
+// Strict-Transport-Security is NOT set here — it should be added by the
+// reverse proxy or load balancer so it can be configured per-environment.
 func SecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")

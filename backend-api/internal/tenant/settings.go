@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
 )
 
 type Settings struct {
@@ -18,12 +20,10 @@ type Settings struct {
 	Metadata    map[string]any `json:"metadata"`
 }
 
+// validate checks field constraints. Trimming is not performed here
+// (value receiver); the caller is responsible for trimming before
+// calling validate and using the trimmed values for persistence.
 func (s Settings) validate() error {
-	s.DisplayName = strings.TrimSpace(s.DisplayName)
-	s.LogoURL = strings.TrimSpace(s.LogoURL)
-	s.Timezone = strings.TrimSpace(s.Timezone)
-	s.Locale = strings.TrimSpace(s.Locale)
-	s.Currency = strings.TrimSpace(s.Currency)
 	if s.DisplayName != "" && len(s.DisplayName) > 120 {
 		return errors.New("display_name too long")
 	}
@@ -61,43 +61,59 @@ func (s Settings) validate() error {
 }
 
 func (s *Service) Settings(ctx context.Context, tenantID string) (Settings, error) {
-	_, _ = s.db.Exec(ctx, "INSERT INTO tenant_settings(tenant_id,display_name) SELECT id,name FROM tenants WHERE id=$1 ON CONFLICT(tenant_id) DO NOTHING", tenantID)
 	var out Settings
-	err := s.db.QueryRow(ctx, "SELECT tenant_id,display_name,logo_url,timezone,locale,currency,metadata FROM tenant_settings WHERE tenant_id=$1", tenantID).Scan(&out.TenantID, &out.DisplayName, &out.LogoURL, &out.Timezone, &out.Locale, &out.Currency, &out.Metadata)
+	err := database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID}, func(q database.Querier) error {
+		var err error
+		out, err = s.settings(ctx, q, tenantID)
+		return err
+	})
 	return out, err
 }
-func (s *Service) UpdateSettings(ctx context.Context, tenantID string, in Settings) (Settings, error) {
-	cur, err := s.Settings(ctx, tenantID)
+
+func (s *Service) settings(ctx context.Context, q database.Querier, tenantID string) (Settings, error) {
+	_, err := q.Exec(ctx, "INSERT INTO tenant_settings(tenant_id,display_name) SELECT id,name FROM tenants WHERE id=$1 ON CONFLICT(tenant_id) DO NOTHING", tenantID)
 	if err != nil {
-		return cur, err
-	}
-	if err := in.validate(); err != nil {
-		return cur, err
-	}
-	in.DisplayName = strings.TrimSpace(in.DisplayName)
-	in.LogoURL = strings.TrimSpace(in.LogoURL)
-	in.Timezone = strings.TrimSpace(in.Timezone)
-	in.Locale = strings.TrimSpace(in.Locale)
-	in.Currency = strings.TrimSpace(in.Currency)
-	if in.DisplayName == "" {
-		in.DisplayName = cur.DisplayName
-	}
-	if in.LogoURL == "" {
-		in.LogoURL = cur.LogoURL
-	}
-	if in.Timezone == "" {
-		in.Timezone = cur.Timezone
-	}
-	if in.Locale == "" {
-		in.Locale = cur.Locale
-	}
-	if in.Currency == "" {
-		in.Currency = cur.Currency
-	}
-	if in.Metadata == nil {
-		in.Metadata = cur.Metadata
+		return Settings{}, err
 	}
 	var out Settings
-	err = s.db.QueryRow(ctx, "UPDATE tenant_settings SET display_name=$2,logo_url=$3,timezone=$4,locale=$5,currency=$6,metadata=$7,updated_at=now() WHERE tenant_id=$1 RETURNING tenant_id,display_name,logo_url,timezone,locale,currency,metadata", tenantID, in.DisplayName, in.LogoURL, in.Timezone, in.Locale, in.Currency, in.Metadata).Scan(&out.TenantID, &out.DisplayName, &out.LogoURL, &out.Timezone, &out.Locale, &out.Currency, &out.Metadata)
+	err = q.QueryRow(ctx, "SELECT tenant_id,display_name,logo_url,timezone,locale,currency,metadata FROM tenant_settings WHERE tenant_id=$1", tenantID).Scan(&out.TenantID, &out.DisplayName, &out.LogoURL, &out.Timezone, &out.Locale, &out.Currency, &out.Metadata)
+	return out, err
+}
+
+func (s *Service) UpdateSettings(ctx context.Context, tenantID string, in Settings) (Settings, error) {
+	var out Settings
+	err := database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID}, func(q database.Querier) error {
+		cur, err := s.settings(ctx, q, tenantID)
+		if err != nil {
+			return err
+		}
+		if err := in.validate(); err != nil {
+			return err
+		}
+		in.DisplayName = strings.TrimSpace(in.DisplayName)
+		in.LogoURL = strings.TrimSpace(in.LogoURL)
+		in.Timezone = strings.TrimSpace(in.Timezone)
+		in.Locale = strings.TrimSpace(in.Locale)
+		in.Currency = strings.TrimSpace(in.Currency)
+		if in.DisplayName == "" {
+			in.DisplayName = cur.DisplayName
+		}
+		if in.LogoURL == "" {
+			in.LogoURL = cur.LogoURL
+		}
+		if in.Timezone == "" {
+			in.Timezone = cur.Timezone
+		}
+		if in.Locale == "" {
+			in.Locale = cur.Locale
+		}
+		if in.Currency == "" {
+			in.Currency = cur.Currency
+		}
+		if in.Metadata == nil {
+			in.Metadata = cur.Metadata
+		}
+		return q.QueryRow(ctx, "UPDATE tenant_settings SET display_name=$2,logo_url=$3,timezone=$4,locale=$5,currency=$6,metadata=$7,updated_at=now() WHERE tenant_id=$1 RETURNING tenant_id,display_name,logo_url,timezone,locale,currency,metadata", tenantID, in.DisplayName, in.LogoURL, in.Timezone, in.Locale, in.Currency, in.Metadata).Scan(&out.TenantID, &out.DisplayName, &out.LogoURL, &out.Timezone, &out.Locale, &out.Currency, &out.Metadata)
+	})
 	return out, err
 }

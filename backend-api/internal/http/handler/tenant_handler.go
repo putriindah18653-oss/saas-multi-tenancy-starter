@@ -82,5 +82,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 func (h *TenantHandler) log(r *http.Request, action, id string) {
 	ac, _ := middleware.AuthFromContext(r.Context())
-	_ = h.audit.Log(r.Context(), ac.UserID, "", action, "tenant", id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
+	if err := h.audit.Log(r.Context(), ac.UserID, "", action, "tenant", id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
+		response.LogError(r, "audit write failed", "action", action, "error", err)
+	}
 }

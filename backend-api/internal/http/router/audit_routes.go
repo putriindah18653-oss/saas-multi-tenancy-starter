@@ -12,7 +12,7 @@ import (
 func AuditRoutes(a *auth.Service, rsvc *rbac.Service, as *audit.Service) DomainRegistrar {
 	return func(r chi.Router) {
 		h := handler.NewAuditHandler(as)
-		r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(a), middleware.RequirePermission(rsvc, "app.audit.read")).Get("/app/audit", h.AppList)
-		r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(a), middleware.RequireTenantAccess(rsvc), middleware.RequirePermission(rsvc, "tenant.audit.read")).Get("/tenant/audit", h.TenantList)
+		r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(), middleware.RequirePermission(rsvc, "app.audit.read")).Get("/app/audit", h.AppList)
+		r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(), middleware.RequireTenantAccess(rsvc), middleware.RequirePermission(rsvc, "tenant.audit.read")).Get("/tenant/audit", h.TenantList)
 	}
 }

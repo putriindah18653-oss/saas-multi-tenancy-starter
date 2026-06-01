@@ -104,5 +104,7 @@ func (h *TenantUserHandler) log(r *http.Request, tenantID, action, typ, id strin
 		return
 	}
 	ac, _ := middleware.AuthFromContext(r.Context())
-	_ = h.audit.Log(r.Context(), ac.UserID, tenantID, action, typ, id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
+	if err := h.audit.Log(r.Context(), ac.UserID, tenantID, action, typ, id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
+		response.LogError(r, "audit write failed", "action", action, "error", err)
+	}
 }

@@ -15,6 +15,9 @@ func AuthFromContext(ctx context.Context) (auth.Context, bool) {
 	v, ok := ctx.Value(authKey{}).(auth.Context)
 	return v, ok
 }
+
+// RequireAuth parses the Bearer token, fetches the user profile, and stores
+// auth.Context (including MustChangePassword) in the request context.
 func RequireAuth(s *auth.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +36,12 @@ func RequireAuth(s *auth.Service) func(http.Handler) http.Handler {
 				response.Error(w, r, http.StatusUnauthorized, "unauthorized", "user inactive")
 				return
 			}
-			ac := auth.Context{UserID: u.ID, Email: u.Email, AppRole: u.AppRole}
+			ac := auth.Context{
+				UserID:            u.ID,
+				Email:             u.Email,
+				AppRole:           u.AppRole,
+				MustChangePassword: u.MustChangePassword,
+			}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authKey{}, ac)))
 		})
 	}
