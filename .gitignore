@@ -16,7 +16,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
-
+.omc
 # Go
 bin/
 coverage.out
