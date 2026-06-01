@@ -29,6 +29,16 @@ func main() {
 		log.Fatal(err)
 	}
 	defer conn.Close(ctx)
+
+	// Ensure schema_migrations table exists for version tracking.
+	_, err = conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+		version TEXT PRIMARY KEY,
+		applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+	)`)
+	if err != nil {
+		log.Fatalf("ensure schema_migrations table: %v", err)
+	}
+
 	dir := "migrations"
 	suffix := "." + os.Args[1] + ".sql"
 	entries, err := os.ReadDir(dir)
@@ -48,6 +58,20 @@ func main() {
 		}
 	}
 	for _, name := range names {
+		version := strings.TrimSuffix(name, suffix)
+
+		if os.Args[1] == "up" {
+			var exists bool
+			err := conn.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)", version).Scan(&exists)
+			if err != nil {
+				log.Fatalf("check version %s: %v", version, err)
+			}
+			if exists {
+				fmt.Println("skip", name, "(already applied)")
+				continue
+			}
+		}
+
 		b, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			log.Fatal(err)
@@ -56,5 +80,17 @@ func main() {
 		if _, err := conn.Exec(ctx, string(b)); err != nil {
 			log.Fatalf("%s: %v", name, err)
 		}
+
+		if os.Args[1] == "up" {
+			if _, err := conn.Exec(ctx, "INSERT INTO schema_migrations(version) VALUES($1)", version); err != nil {
+				log.Fatalf("record version %s: %v", version, err)
+			}
+		} else {
+			if _, err := conn.Exec(ctx, "DELETE FROM schema_migrations WHERE version=$1", version); err != nil {
+				log.Fatalf("remove version %s: %v", version, err)
+			}
+		}
+
+		fmt.Println("done", name)
 	}
 }

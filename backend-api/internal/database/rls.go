@@ -81,3 +81,31 @@ func WithRLS(ctx context.Context, pool *pgxpool.Pool, rls RLSContext, fn func(Qu
 	}
 	return tx.Commit(ctx)
 }
+
+// WithRLSRead wraps fn in a read-only transaction with RLS GUCs set.
+// Read-only transactions reduce contention on read-heavy tenant endpoints.
+// Errors from Begin, SetLocalRLS, fn, or Commit are returned.
+func WithRLSRead(ctx context.Context, pool *pgxpool.Pool, rls RLSContext, fn func(Querier) error) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("rls-read: context cancelled before begin: %w", err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("rls-read: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, "SET TRANSACTION READ ONLY"); err != nil {
+		return fmt.Errorf("rls-read: set readonly: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("rls-read: context cancelled after begin: %w", err)
+	}
+	if err := SetLocalRLS(ctx, tx, rls); err != nil {
+		return fmt.Errorf("rls-read: set guc: %w", err)
+	}
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}

@@ -18,8 +18,9 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env        string `json:"env"`
-	TrustProxy bool   `json:"trust_proxy"`
+	Env                string `json:"env"`
+	TrustProxy         bool   `json:"trust_proxy"`
+	InternalProxySecret string `json:"internal_proxy_secret"`
 }
 type HTTPConfig struct {
 	Port string `json:"port"`
@@ -46,7 +47,7 @@ type CORSConfig struct {
 func Load() (*Config, error) {
 	port := env("APP_PORT", "8080")
 	cfg := &Config{
-		App:  AppConfig{Env: env("APP_ENV", "development"), TrustProxy: envBool("TRUST_PROXY", false)},
+		App:  AppConfig{Env: env("APP_ENV", "development"), TrustProxy: envBool("TRUST_PROXY", false), InternalProxySecret: env("INTERNAL_PROXY_SECRET", "")},
 		HTTP: HTTPConfig{Port: port, Addr: ":" + port},
 		Database: DatabaseConfig{
 			URL:      env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/saas_starter?sslmode=disable"),
@@ -77,6 +78,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("JWT_REFRESH_SECRET is required")
 	}
 	if !c.IsDevelopment() {
+		if c.App.InternalProxySecret == "" {
+			return fmt.Errorf("INTERNAL_PROXY_SECRET is required in production")
+		}
 		if len(c.JWT.AccessSecret) < 32 || len(c.JWT.RefreshSecret) < 32 {
 			return fmt.Errorf("JWT secrets must be at least 32 characters in non-development environments")
 		}

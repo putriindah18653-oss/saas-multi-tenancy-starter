@@ -23,6 +23,7 @@ func (h *TenantSettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
 	v, err := h.svc.Settings(r.Context(), tc.TenantID)
 	if err != nil {
+		response.LogError(r, "load tenant settings failed", "error", err)
 		response.Error(w, r, 500, "settings_failed", "could not load tenant settings")
 		return
 	}
@@ -36,6 +37,7 @@ func (h *TenantSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
 	v, err := h.svc.UpdateSettings(r.Context(), tc.TenantID, req)
 	if err != nil {
+		response.LogError(r, "update settings failed", "error", err)
 		response.Error(w, r, 400, "settings_update_failed", "could not update tenant settings")
 		return
 	}

@@ -14,13 +14,14 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func TenantUserRoutes(a *auth.Service, rsvc *rbac.Service, us *user.Service, as *audit.Service, redisClient *redis.Client, trustProxy bool) DomainRegistrar {
+func TenantUserRoutes(a *auth.Service, rsvc *rbac.Service, us *user.Service, as *audit.Service, redisClient *redis.Client, trustProxy bool, proxySecret string) DomainRegistrar {
 	return func(r chi.Router) {
 		h := handler.NewTenantUserHandler(us, as, trustProxy)
 		r.Route("/tenant", func(tr chi.Router) {
+			tr.Use(middleware.BodyLimit(middleware.DefaultBodyLimit))
 			tr.Use(middleware.RequireAuth(a))
 			tr.Use(middleware.RequirePasswordChanged())
-			tr.Use(middleware.RequireTenantAccess(rsvc))
+			tr.Use(middleware.RequireTenantAccess(rsvc, proxySecret))
 			tr.With(middleware.RequirePermission(rsvc, "tenant.dashboard.read")).Get("/dashboard", h.Dashboard)
 			tr.Get("/me", h.Me)
 			tr.With(middleware.RequirePermission(rsvc, "tenant.users.read")).Get("/users", h.List)

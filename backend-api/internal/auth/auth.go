@@ -177,6 +177,14 @@ func (s *Service) Memberships(ctx context.Context, userID string) ([]TenantMembe
 	return out, err
 }
 func (s *Service) Tokens(ctx context.Context, u *UserProfile, ip, ua string) (string, string, error) {
+	// Enforce per-user refresh token cap to limit table bloat.
+	const maxTokensPerUser = 10
+	var count int
+	err := s.db.QueryRow(ctx, "SELECT COUNT(*) FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL AND expires_at > now()", u.ID).Scan(&count)
+	if err == nil && count >= maxTokensPerUser {
+		// Remove oldest expired/unused tokens to make room.
+		_, _ = s.db.Exec(ctx, "DELETE FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL AND (expires_at <= now() OR id NOT IN (SELECT id FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT $2))", u.ID, maxTokensPerUser-1)
+	}
 	a, err := s.token(u, "access", "", time.Duration(s.cfg.AccessTTLMinutes)*time.Minute)
 	if err != nil {
 		return "", "", err
@@ -260,7 +268,9 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, ip, ua string) (*Us
 	}
 	if revokedAt != nil || replacedBy != nil {
 		_, _ = tx.Exec(ctx, "UPDATE refresh_tokens SET revoked_at=COALESCE(revoked_at, now()) WHERE user_id=$1 AND revoked_at IS NULL", c.UserID)
-		_ = tx.Commit(ctx)
+		if err := tx.Commit(ctx); err != nil {
+			return nil, "", "", fmt.Errorf("refresh: commit token revoke: %w", err)
+		}
 		return nil, "", "", errors.New("refresh token reuse detected")
 	}
 	if time.Now().After(expiresAt) {

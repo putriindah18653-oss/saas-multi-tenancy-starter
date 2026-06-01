@@ -30,6 +30,7 @@ type tenantReq struct {
 func (h *TenantHandler) List(w http.ResponseWriter, r *http.Request) {
 	v, err := h.svc.List(r.Context())
 	if err != nil {
+		response.LogError(r, "list tenants failed", "error", err)
 		response.Error(w, r, 500, "tenant_list_failed", "could not list tenants")
 		return
 	}
@@ -43,6 +44,7 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ac, _ := middleware.AuthFromContext(r.Context())
 	t, err := h.svc.Create(r.Context(), ac.UserID, req.Name, req.Slug)
 	if err != nil {
+		response.LogError(r, "create tenant failed", "error", err)
 		response.Error(w, r, 400, "tenant_create_failed", "could not create tenant")
 		return
 	}
@@ -65,6 +67,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	t, err := h.svc.Update(r.Context(), id, req.Name, req.Status)
 	if err != nil {
+		response.LogError(r, "update tenant failed", "error", err)
 		response.Error(w, r, 400, "tenant_update_failed", "could not update tenant")
 		return
 	}

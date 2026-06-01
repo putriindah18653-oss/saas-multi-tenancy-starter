@@ -1,0 +1,29 @@
+name = "saas-starter-dashboard"
+main = "./src/index.ts"
+compatibility_date = "2025-04-08"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[[kv_namespaces]]
+binding = "CACHE_TENANT"
+id = "CACHE_TENANT_KV"
+preview_id = "CACHE_TENANT_KV_PREVIEW"
+
+# Routes: declare which domains this worker handles.
+# Update for your actual domain(s) in production.
+[[routes]]
+pattern = "*.portalonline.id"
+zone_name = "portalonline-id"
+custom_domain = true
+
+[vars]
+BACKEND_ORIGIN = "http://backend:8080"
+ENV = "development"
+# INTERNAL_PROXY_SECRET must match backend-api .env
+INTERNAL_PROXY_SECRET = ""
+
+[env.production.vars]
+BACKEND_ORIGIN = "https://api.portalonline.id"
+ENV = "production"

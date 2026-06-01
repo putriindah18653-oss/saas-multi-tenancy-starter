@@ -17,6 +17,7 @@ func AppTenantRoutes(a *auth.Service, rsvc *rbac.Service, ts *tenant.Service, as
 	return func(r chi.Router) {
 		h := handler.NewTenantHandler(ts, as, trustProxy)
 		r.Route("/app/tenants", func(tr chi.Router) {
+			tr.Use(middleware.BodyLimit(middleware.DefaultBodyLimit))
 			tr.Use(middleware.RequireAuth(a))
 			tr.Use(middleware.RequirePasswordChanged())
 			tr.Use(middleware.RateLimitRules(redisClient, trustProxy, middleware.RateLimitRule{Name: "app:tenants", Scope: middleware.RateLimitByUser, Limit: 120, Window: time.Minute}))

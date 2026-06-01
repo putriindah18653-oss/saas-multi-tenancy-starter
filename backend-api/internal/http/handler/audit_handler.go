@@ -15,6 +15,8 @@ func NewAuditHandler(s *audit.Service) *AuditHandler { return &AuditHandler{svc:
 func (h *AuditHandler) AppList(w http.ResponseWriter, r *http.Request) {
 	v, err := h.svc.ListApp(r.Context(), parseLimit(r))
 	if err != nil {
+		response.LogError(r, "list app audit failed", "error", err)
+		response.LogError(r, "list tenant audit failed", "error", err)
 		response.Error(w, r, 500, "audit_failed", "could not list audit logs")
 		return
 	}
