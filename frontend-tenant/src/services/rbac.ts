@@ -1,20 +1,16 @@
-import type { TenantMembership } from '@/stores/tenant'
+import type { TenantMembership } from '@/contracts/api'
 
+/**
+ * Tenant roles. `owner-tenant` and `tenant_owner` are identical in permissions;
+ * both represent the tenant owner (backward compatible backend naming).
+ * Similarly `admin` and `tenant_admin` are equivalent.
+ */
 export const TENANT_ROLES = ['owner-tenant', 'admin', 'finance', 'support', 'tenant_owner', 'tenant_admin', 'manager', 'staff', 'viewer'] as const
 
 export type TenantRole = (typeof TENANT_ROLES)[number]
 
-export const TENANT_ROLE_OPTIONS: Array<{ value: TenantRole; label: string }> = [
-  { value: 'owner-tenant', label: 'owner-tenant' },
-  { value: 'admin', label: 'admin' },
-  { value: 'finance', label: 'finance' },
-  { value: 'support', label: 'support' },
-  { value: 'manager', label: 'manager' },
-  { value: 'staff', label: 'staff' },
-  { value: 'viewer', label: 'viewer' },
-  { value: 'tenant_owner', label: 'tenant_owner' },
-  { value: 'tenant_admin', label: 'tenant_admin' },
-]
+export const TENANT_ROLE_OPTIONS: Array<{ value: TenantRole; label: string }> =
+  TENANT_ROLES.map((role) => ({ value: role, label: role }))
 
 export const TENANT_OWNER_ROLES: TenantRole[] = ['owner-tenant', 'tenant_owner']
 
@@ -36,60 +32,37 @@ export type TenantPermission =
   | 'tenant.support.manage'
   | 'tenant.reports.read'
 
-export type Permission = TenantPermission
-
 const tenantRolePermissions: Record<TenantRole, TenantPermission[]> = {
-  'owner-tenant': [
-    'tenant.dashboard.read',
-    'tenant.users.read',
-    'tenant.users.invite',
-    'tenant.users.update',
-    'tenant.users.remove',
-    'tenant.settings.read',
-    'tenant.settings.update',
-    'tenant.audit.read',
-    'tenant.billing.read',
-    'tenant.billing.manage',
-    'tenant.reports.read',
-  ],
-  tenant_owner: [
-    'tenant.dashboard.read',
-    'tenant.users.read',
-    'tenant.users.invite',
-    'tenant.users.update',
-    'tenant.users.remove',
-    'tenant.settings.read',
-    'tenant.settings.update',
-    'tenant.audit.read',
-    'tenant.billing.read',
-    'tenant.billing.manage',
-    'tenant.reports.read',
-  ],
-  admin: [
-    'tenant.dashboard.read',
-    'tenant.users.read',
-    'tenant.users.update',
-    'tenant.users.remove',
-    'tenant.settings.read',
-    'tenant.settings.update',
-    'tenant.audit.read',
-    'tenant.reports.read',
-  ],
-  tenant_admin: [
-    'tenant.dashboard.read',
-    'tenant.users.read',
-    'tenant.users.update',
-    'tenant.users.remove',
-    'tenant.settings.read',
-    'tenant.settings.update',
-    'tenant.audit.read',
-    'tenant.reports.read',
-  ],
+  'owner-tenant': allOwnerPermissions(),
+  tenant_owner: allOwnerPermissions(),
+  admin: adminPermissions(),
+  tenant_admin: adminPermissions(),
   manager: ['tenant.dashboard.read', 'tenant.reports.read'],
   staff: ['tenant.dashboard.read'],
   finance: ['tenant.dashboard.read', 'tenant.billing.read', 'tenant.billing.manage', 'tenant.reports.read'],
   support: ['tenant.dashboard.read', 'tenant.users.read', 'tenant.support.manage'],
   viewer: ['tenant.dashboard.read', 'tenant.reports.read'],
+}
+
+function allOwnerPermissions(): TenantPermission[] {
+  return [
+    'tenant.dashboard.read',
+    'tenant.users.read', 'tenant.users.invite', 'tenant.users.update', 'tenant.users.remove',
+    'tenant.settings.read', 'tenant.settings.update',
+    'tenant.audit.read',
+    'tenant.billing.read', 'tenant.billing.manage',
+    'tenant.reports.read',
+  ]
+}
+
+function adminPermissions(): TenantPermission[] {
+  return [
+    'tenant.dashboard.read',
+    'tenant.users.read', 'tenant.users.update', 'tenant.users.remove',
+    'tenant.settings.read', 'tenant.settings.update',
+    'tenant.audit.read',
+    'tenant.reports.read',
+  ]
 }
 
 export function isTenantRole(role: string | undefined | null): role is TenantRole {
@@ -102,19 +75,19 @@ export function getTenantPermissions(membership: TenantMembership | null | undef
   return tenantRolePermissions[role]
 }
 
-export function hasPermission(current: Permission[] | string[] | undefined | null, required: Permission | string): boolean {
+export function hasPermission(current: TenantPermission[] | string[] | undefined | null, required: TenantPermission | string): boolean {
   if (!current || current.length === 0) return false
-  return current.includes(required as Permission)
+  return current.includes(required as TenantPermission)
 }
 
-export function hasAnyPermission(current: Permission[] | string[] | undefined | null, required: Array<Permission | string>): boolean {
+export function hasAnyPermission(current: TenantPermission[] | string[] | undefined | null, required: Array<TenantPermission | string>): boolean {
   if (!current || current.length === 0) return false
-  return required.some((perm) => current.includes(perm as Permission))
+  return required.some((perm) => current.includes(perm as TenantPermission))
 }
 
-export function hasAllPermissions(current: Permission[] | string[] | undefined | null, required: Array<Permission | string>): boolean {
+export function hasAllPermissions(current: TenantPermission[] | string[] | undefined | null, required: Array<TenantPermission | string>): boolean {
   if (!current || current.length === 0) return false
-  return required.every((perm) => current.includes(perm as Permission))
+  return required.every((perm) => current.includes(perm as TenantPermission))
 }
 
 export function canTenant(membership: TenantMembership | null | undefined, permission: TenantPermission): boolean {

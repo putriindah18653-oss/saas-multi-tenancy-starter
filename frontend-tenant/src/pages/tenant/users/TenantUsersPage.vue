@@ -157,8 +157,10 @@ async function load() {
   try {
     const res = await tenantUsersService.list()
     members.value = res.data.data || []
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Failed to load members'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal memuat members'
+    console.error('[tenant-users] load failed', e)
   } finally {
     loading.value = false
   }
@@ -171,30 +173,26 @@ async function changeRole(id: string, role: string) {
   if (member.role === role) return
   if (!canChangeMemberRole(member)) {
     error.value = 'This member role is protected.'
-    await load()
     return
   }
   if (!canAssignRole(role)) {
     error.value = 'Role is not allowed for your access level.'
-    await load()
     return
   }
   if (isTenantOwnerRole(member.role) && !isTenantOwnerRole(role) && isLastActiveOwner(member)) {
     error.value = 'At least one active tenant owner is required.'
-    await load()
     return
   }
-  if (!confirm(`Change ${member.email} role from ${member.role} to ${role}?`)) {
-    await load()
-    return
-  }
+  if (!confirm(`Change ${member.email} role from ${member.role} to ${role}?`)) return
   loading.value = true
   error.value = ''
   try {
     await tenantUsersService.changeRole(id, role)
     await load()
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Failed to change role'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal mengubah role'
+    console.error('[tenant-users] changeRole failed', e)
   } finally {
     loading.value = false
   }
@@ -214,8 +212,10 @@ async function removeMember(id: string) {
   try {
     await tenantUsersService.remove(id)
     await load()
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Failed to remove member'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal menghapus member'
+    console.error('[tenant-users] removeMember failed', e)
   } finally {
     loading.value = false
   }

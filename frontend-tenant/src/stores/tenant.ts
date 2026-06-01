@@ -1,11 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import type { TenantMembership } from '@/contracts/api'
 
-export type TenantMembership = {
-  tenant_id: string
-  tenant_name?: string
-  role: string
-}
+export type { TenantMembership } from '@/contracts/api'
 
 const SELECTED_TENANT_KEY = 'selected_tenant_id'
 

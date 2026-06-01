@@ -47,8 +47,10 @@ async function submit() {
     auth.setSession({ accessToken: payload.access_token, refreshToken: payload.refresh_token, user: payload.user })
     tenant.setMemberships(payload.tenant_memberships || [])
     router.push({ name: auth.defaultHomeRoute })
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Login gagal'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Login gagal'
+    console.error('[login] failed', e)
   } finally {
     loading.value = false
   }

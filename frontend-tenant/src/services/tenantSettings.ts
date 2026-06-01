@@ -1,16 +1,7 @@
 import { tenantApi } from '@/services/api'
+import type { Envelope, TenantSettings } from '@/contracts/api'
 
-export type TenantSettings = {
-  tenant_id: string
-  display_name: string
-  logo_url: string
-  timezone: string
-  locale: string
-  currency: string
-  metadata: Record<string, unknown>
-}
-
-type Envelope<T> = { success: boolean; data: T }
+export type { TenantSettings }
 
 export const tenantSettingsService = {
   get() {

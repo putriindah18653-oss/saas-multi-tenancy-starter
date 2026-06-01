@@ -58,8 +58,9 @@ onMounted(async () => {
   error.value = ''
   try {
     entries.value = (await auditService.tenant()).data.data || []
-  } catch {
+  } catch (e: unknown) {
     error.value = 'Gagal memuat audit log.'
+    console.error('[tenant-audit] load failed', e)
   } finally {
     loading.value = false
   }

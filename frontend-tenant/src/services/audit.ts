@@ -1,19 +1,7 @@
 import { tenantApi } from '@/services/api'
+import type { AuditEntry, Envelope } from '@/contracts/api'
 
-export type AuditEntry = {
-  id: string
-  actor_user_id?: string
-  tenant_id?: string
-  action: string
-  resource_type: string
-  resource_id?: string
-  metadata: Record<string, unknown>
-  ip_address: string
-  user_agent: string
-  created_at: string
-}
-
-type Envelope<T> = { success: boolean; data: T }
+export type { AuditEntry }
 
 export const auditService = {
   tenant(limit = 100) {
