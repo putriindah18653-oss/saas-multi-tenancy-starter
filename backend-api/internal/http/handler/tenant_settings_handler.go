@@ -23,6 +23,7 @@ func (h *TenantSettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
 	v, err := h.svc.Settings(r.Context(), tc.TenantID)
 	if err != nil {
+		response.LogError(r, "load tenant settings failed", "error", err)
 		response.Error(w, r, 500, "settings_failed", "could not load tenant settings")
 		return
 	}
@@ -36,11 +37,14 @@ func (h *TenantSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
 	v, err := h.svc.UpdateSettings(r.Context(), tc.TenantID, req)
 	if err != nil {
+		response.LogError(r, "update settings failed", "error", err)
 		response.Error(w, r, 400, "settings_update_failed", "could not update tenant settings")
 		return
 	}
 	if ac, ok := middleware.AuthFromContext(r.Context()); ok && h.audit != nil {
-		_ = h.audit.Log(r.Context(), ac.UserID, tc.TenantID, "tenant.settings.update", "tenant_settings", tc.TenantID, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
+		if err := h.audit.Log(r.Context(), ac.UserID, tc.TenantID, "tenant.settings.update", "tenant_settings", tc.TenantID, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
+			response.LogError(r, "audit write failed", "action", "tenant.settings.update", "error", err)
+		}
 	}
 	response.Success(w, r, 200, v)
 }

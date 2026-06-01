@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
 )
 
 type Tenant struct {
@@ -91,25 +93,19 @@ func (s *Service) Create(ctx context.Context, creatorUserID, name, sl string) (T
 	if err != nil {
 		return Tenant{}, err
 	}
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return Tenant{}, err
-	}
-	defer tx.Rollback(ctx)
 	var t Tenant
-	err = tx.QueryRow(ctx, "INSERT INTO tenants(name,slug,status) VALUES($1,$2,'active') RETURNING id,name,slug,status", name, sl).Scan(&t.ID, &t.Name, &t.Slug, &t.Status)
-	if err != nil {
-		return Tenant{}, err
-	}
-	if creatorUserID != "" {
-		if _, err := tx.Exec(ctx, "INSERT INTO user_tenants(user_id,tenant_id,role,is_active) VALUES($1,$2,'owner-tenant',true) ON CONFLICT(user_id,tenant_id) DO UPDATE SET role='owner-tenant',is_active=true,updated_at=now()", creatorUserID, t.ID); err != nil {
-			return Tenant{}, err
+	err = database.WithRLS(ctx, s.db, database.RLSContext{UserID: creatorUserID, PlatformAdmin: true}, func(q database.Querier) error {
+		if err := q.QueryRow(ctx, "INSERT INTO tenants(name,slug,status) VALUES($1,$2,'active') RETURNING id,name,slug,status", name, sl).Scan(&t.ID, &t.Name, &t.Slug, &t.Status); err != nil {
+			return err
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return Tenant{}, err
-	}
-	return t, nil
+		// creatorUserID is always non-empty at this point (validated above).
+		if _, err := q.Exec(ctx, "INSERT INTO user_tenants(user_id,tenant_id,role,is_active) VALUES($1,$2,'owner-tenant',true) ON CONFLICT(user_id,tenant_id) DO UPDATE SET role='owner-tenant',is_active=true,updated_at=now()", creatorUserID, t.ID); err != nil {
+			return err
+		}
+		_, err := q.Exec(ctx, "INSERT INTO tenant_settings(tenant_id,display_name) VALUES($1,$2) ON CONFLICT(tenant_id) DO NOTHING", t.ID, t.Name)
+		return err
+	})
+	return t, err
 }
 func (s *Service) Get(ctx context.Context, id string) (Tenant, error) {
 	var t Tenant

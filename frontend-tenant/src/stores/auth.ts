@@ -1,32 +1,18 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import type { UserProfile } from '@/contracts/api'
 
-export type UserProfile = {
-  id: string
-  email: string
-  name?: string
-  full_name?: string
-  phone?: string
-  address?: string
-  avatar_url?: string
-  bio?: string
-  app_role?: string
-  must_change_password?: boolean
-}
+export type { UserProfile } from '@/contracts/api'
 
 const REFRESH_TOKEN_KEY = 'refresh_token'
 
-function readStoredRefreshToken() {
-  const token = localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY)
-  if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token)
-  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
-  return token
+function readStoredRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
 }
 
 function persistRefreshToken(token: string | null) {
   if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token)
   else localStorage.removeItem(REFRESH_TOKEN_KEY)
-  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
 }
 
 export const useAuthStore = defineStore('auth', () => {

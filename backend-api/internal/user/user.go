@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
 )
 
 type Member struct {
@@ -39,24 +41,29 @@ func hash(p string) (string, error) {
 }
 func (s *Service) TenantMe(ctx context.Context, userID, tenantID string) (Member, error) {
 	var m Member
-	err := s.db.QueryRow(ctx, "SELECT ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active FROM user_tenants ut JOIN users u ON u.id=ut.user_id WHERE ut.user_id=$1 AND ut.tenant_id=$2", userID, tenantID).Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive)
+	err := database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID, UserID: userID}, func(q database.Querier) error {
+		return q.QueryRow(ctx, "SELECT ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active FROM user_tenants ut JOIN users u ON u.id=ut.user_id WHERE ut.user_id=$1 AND ut.tenant_id=$2", userID, tenantID).Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive)
+	})
 	return m, err
 }
 func (s *Service) List(ctx context.Context, tenantID string) ([]Member, error) {
-	rows, err := s.db.Query(ctx, "SELECT ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active FROM user_tenants ut JOIN users u ON u.id=ut.user_id WHERE ut.tenant_id=$1 ORDER BY u.name", tenantID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	out := []Member{}
-	for rows.Next() {
-		var m Member
-		if err := rows.Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive); err != nil {
-			return nil, err
+	err := database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID}, func(q database.Querier) error {
+		rows, err := q.Query(ctx, "SELECT ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active FROM user_tenants ut JOIN users u ON u.id=ut.user_id WHERE ut.tenant_id=$1 ORDER BY u.name", tenantID)
+		if err != nil {
+			return err
 		}
-		out = append(out, m)
-	}
-	return out, rows.Err()
+		defer rows.Close()
+		for rows.Next() {
+			var m Member
+			if err := rows.Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive); err != nil {
+				return err
+			}
+			out = append(out, m)
+		}
+		return rows.Err()
+	})
+	return out, err
 }
 func (s *Service) Invite(ctx context.Context, tenantID, name, email, role string) (Member, string, error) {
 	name = strings.TrimSpace(name)
@@ -72,28 +79,23 @@ func (s *Service) Invite(ctx context.Context, tenantID, name, email, role string
 	if err != nil {
 		return Member{}, "", err
 	}
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return Member{}, "", err
-	}
-	defer tx.Rollback(ctx)
-	var userID string
-	createdUser := false
-	err = tx.QueryRow(ctx, "INSERT INTO users(name,email,password_hash,must_change_password) VALUES($1,$2,$3,true) ON CONFLICT(email) DO NOTHING RETURNING id", name, email, h).Scan(&userID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		err = tx.QueryRow(ctx, "SELECT id FROM users WHERE email=$1", email).Scan(&userID)
-	} else if err == nil {
-		createdUser = true
-	}
-	if err != nil {
-		return Member{}, "", err
-	}
 	var m Member
-	err = tx.QueryRow(ctx, "INSERT INTO user_tenants(user_id,tenant_id,role) VALUES($1,$2,$3) ON CONFLICT(user_id,tenant_id) DO UPDATE SET role=CASE WHEN user_tenants.role='owner-tenant' THEN user_tenants.role ELSE $3 END,is_active=true,updated_at=now() RETURNING id,user_id,tenant_id,role,is_active", userID, tenantID, role).Scan(&m.ID, &m.UserID, &m.TenantID, &m.Role, &m.IsActive)
+	createdUser := false
+	err = database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID}, func(q database.Querier) error {
+		var userID string
+		err := q.QueryRow(ctx, "INSERT INTO users(name,email,password_hash,must_change_password) VALUES($1,$2,$3,true) ON CONFLICT(email) DO NOTHING RETURNING id", name, email, h).Scan(&userID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = q.QueryRow(ctx, "SELECT id FROM users WHERE email=$1", email).Scan(&userID)
+		} else if err == nil {
+			createdUser = true
+		}
+		if err != nil {
+			return err
+		}
+		err = q.QueryRow(ctx, "INSERT INTO user_tenants(user_id,tenant_id,role) VALUES($1,$2,$3) ON CONFLICT(user_id,tenant_id) DO UPDATE SET role=CASE WHEN user_tenants.role='owner-tenant' THEN user_tenants.role ELSE $3 END,is_active=true,updated_at=now() RETURNING id,user_id,tenant_id,role,is_active", userID, tenantID, role).Scan(&m.ID, &m.UserID, &m.TenantID, &m.Role, &m.IsActive)
+		return err
+	})
 	if err != nil {
-		return Member{}, "", err
-	}
-	if err := tx.Commit(ctx); err != nil {
 		return Member{}, "", err
 	}
 	m.Name = name
@@ -108,16 +110,20 @@ func (s *Service) ChangeRole(ctx context.Context, tenantID, memberID, role strin
 		return Member{}, errors.New("invalid role")
 	}
 	var m Member
-	err := s.db.QueryRow(ctx, "UPDATE user_tenants ut SET role=$3,updated_at=now() FROM users u WHERE ut.user_id=u.id AND ut.tenant_id=$1 AND ut.id=$2 AND ut.role<>'owner-tenant' RETURNING ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active", tenantID, memberID, role).Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive)
+	err := database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID}, func(q database.Querier) error {
+		return q.QueryRow(ctx, "UPDATE user_tenants ut SET role=$3,updated_at=now() FROM users u WHERE ut.user_id=u.id AND ut.tenant_id=$1 AND ut.id=$2 AND ut.role<>'owner-tenant' RETURNING ut.id,u.id,u.name,u.email,ut.tenant_id,ut.role,ut.is_active", tenantID, memberID, role).Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.TenantID, &m.Role, &m.IsActive)
+	})
 	return m, err
 }
 func (s *Service) Remove(ctx context.Context, tenantID, memberID string) error {
-	tag, err := s.db.Exec(ctx, "UPDATE user_tenants SET is_active=false,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND role<>'owner-tenant'", tenantID, memberID)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return pgx.ErrNoRows
-	}
-	return nil
+	return database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID}, func(q database.Querier) error {
+		tag, err := q.Exec(ctx, "UPDATE user_tenants SET is_active=false,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND role<>'owner-tenant'", tenantID, memberID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return pgx.ErrNoRows
+		}
+		return nil
+	})
 }

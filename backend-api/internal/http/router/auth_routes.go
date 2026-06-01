@@ -11,9 +11,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func AuthRoutes(s *auth.Service, a *audit.Service, redisClient *redis.Client, trustProxy bool) DomainRegistrar {
+func AuthRoutes(s *auth.Service, a *audit.Service, redisClient *redis.Client, trustProxy, secureCookie bool) DomainRegistrar {
 	return func(r chi.Router) {
-		h := handler.NewAuthHandler(s, a, trustProxy)
+		h := handler.NewAuthHandler(s, a, trustProxy, secureCookie)
 		r.With(middleware.RateLimit(redisClient, "auth:login", 10, time.Minute, trustProxy)).Post("/auth/login", h.Login)
 		r.With(middleware.RateLimit(redisClient, "auth:refresh", 30, time.Minute, trustProxy)).Post("/auth/refresh", h.Refresh)
 		r.Group(func(pr chi.Router) {
@@ -21,9 +21,12 @@ func AuthRoutes(s *auth.Service, a *audit.Service, redisClient *redis.Client, tr
 			pr.Post("/auth/logout", h.Logout)
 			pr.Get("/me", h.Me)
 			pr.Patch("/me/profile", h.UpdateProfile)
-			pr.With(middleware.RateLimit(redisClient, "auth:password", 5, time.Minute, trustProxy)).Post("/me/password", h.ChangePassword)
-			pr.With(middleware.RequirePasswordChanged(s)).Get("/me/sessions", h.Sessions)
-			pr.With(middleware.RequirePasswordChanged(s)).Delete("/me/sessions/{id}", h.RevokeSession)
+			pr.With(middleware.RateLimitRules(redisClient, trustProxy,
+				middleware.RateLimitRule{Name: "auth:password", Scope: middleware.RateLimitByIP, Limit: 5, Window: time.Minute},
+				middleware.RateLimitRule{Name: "auth:password", Scope: middleware.RateLimitByUser, Limit: 5, Window: time.Minute},
+			)).Post("/me/password", h.ChangePassword)
+			pr.With(middleware.RequirePasswordChanged()).Get("/me/sessions", h.Sessions)
+			pr.With(middleware.RequirePasswordChanged()).Delete("/me/sessions/{id}", h.RevokeSession)
 		})
 	}
 }

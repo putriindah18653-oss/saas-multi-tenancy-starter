@@ -12,13 +12,14 @@ import (
 )
 
 type AuthHandler struct {
-	svc        *auth.Service
-	audit      *audit.Service
-	trustProxy bool
+	svc          *auth.Service
+	audit        *audit.Service
+	trustProxy   bool
+	secureCookie bool
 }
 
-func NewAuthHandler(s *auth.Service, a *audit.Service, trustProxy bool) *AuthHandler {
-	return &AuthHandler{svc: s, audit: a, trustProxy: trustProxy}
+func NewAuthHandler(s *auth.Service, a *audit.Service, trustProxy, secureCookie bool) *AuthHandler {
+	return &AuthHandler{svc: s, audit: a, trustProxy: trustProxy, secureCookie: secureCookie}
 }
 
 type loginReq struct {
@@ -55,7 +56,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	h.setRefreshCookie(w, rt)
 	h.log(r, u.ID, "auth.login", "user", u.ID)
-	response.Success(w, r, 200, map[string]any{"user": u, "tenant_memberships": u.Tenants, "access_token": a, "refresh_token": rt})
+	response.Success(w, r, 200, map[string]any{"user": u, "tenant_memberships": u.Tenants, "access_token": a})
 }
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshReq
@@ -79,7 +80,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.setRefreshCookie(w, rt)
-	response.Success(w, r, 200, map[string]any{"user": u, "access_token": a, "refresh_token": rt})
+	response.Success(w, r, 200, map[string]any{"user": u, "access_token": a})
 }
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	var req logoutReq
@@ -113,7 +114,7 @@ func (h *AuthHandler) setRefreshCookie(w http.ResponseWriter, token string) {
 		Value:    token,
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   false, // set true in production with HTTPS
+		Secure:   h.secureCookie,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   7 * 24 * 60 * 60, // 7 days
 	})
@@ -125,7 +126,7 @@ func (h *AuthHandler) clearRefreshCookie(w http.ResponseWriter) {
 		Value:    "",
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   h.secureCookie,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
@@ -213,7 +214,9 @@ func (h *AuthHandler) log(r *http.Request, actor, action, typ, id string) {
 	if h.audit == nil {
 		return
 	}
-	_ = h.audit.Log(r.Context(), actor, "", action, typ, id, map[string]any{}, h.clientIP(r), r.UserAgent())
+	if err := h.audit.Log(r.Context(), actor, "", action, typ, id, map[string]any{}, h.clientIP(r), r.UserAgent()); err != nil {
+		response.LogError(r, "audit write failed", "action", action, "error", err)
+	}
 }
 func (h *AuthHandler) clientIP(r *http.Request) string {
 	return common.ClientIP(r, h.trustProxy)

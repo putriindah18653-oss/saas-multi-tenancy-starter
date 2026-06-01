@@ -1,9 +1,10 @@
 <template>
   <div class="app-shell">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-[var(--radius-button)] focus:bg-[var(--accent)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[var(--bg-app)]">Skip to main content</a>
     <AppSidebar :items="items" />
     <div class="app-main" :class="{ 'app-main--collapsed': ui.sidebarCollapsed }">
       <TopNav :title="pageTitle" />
-      <main class="content">
+      <main id="main-content" class="content">
         <RouterView />
       </main>
     </div>

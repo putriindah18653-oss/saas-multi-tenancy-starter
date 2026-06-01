@@ -1,0 +1,787 @@
+openapi: 3.0.3
+info:
+  title: SaaS Multi-Tenancy Starter API
+  version: 0.1.0
+  description: Versioned HTTP API contract for owner and tenant consoles.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Owner
+  - name: Tenant
+  - name: Uploads
+  - name: Audit
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthPayload'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Rotate refresh token and issue a new access token
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Refresh successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthPayload'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200': { $ref: '#/components/responses/StatusOK' }
+        '401': { $ref: '#/components/responses/Error' }
+  /me:
+    get:
+      tags: [Auth]
+      summary: Current user profile
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '401': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Auth]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /me/password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200': { $ref: '#/components/responses/ChangedOK' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /me/permissions:
+    get:
+      tags: [Auth]
+      summary: Current user permissions
+      responses:
+        '200':
+          description: Permissions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          app_permissions:
+                            type: array
+                            items: { type: string }
+                          tenant_permissions:
+                            type: array
+                            items: { type: string }
+  /me/uploads/avatar:
+    post:
+      tags: [Uploads]
+      summary: Upload current user's avatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Uploaded avatar
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UploadResult'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /uploads/{path}:
+    get:
+      tags: [Uploads]
+      summary: Fetch an authorized uploaded asset
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: { type: string }
+          description: Upload path under /uploads. Access is checked by asset scope.
+      responses:
+        '200': { description: Binary asset }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /app/tenants/:
+    get:
+      tags: [Owner]
+      summary: List tenants
+      responses:
+        '200':
+          description: Tenant list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Tenant' }
+    post:
+      tags: [Owner]
+      summary: Create tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '201':
+          description: Created tenant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Tenant' }
+        '400': { $ref: '#/components/responses/Error' }
+  /app/tenants/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ID'
+    get:
+      tags: [Owner]
+      summary: Get tenant
+      responses:
+        '200':
+          description: Tenant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Tenant' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Owner]
+      summary: Update tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantRequest'
+      responses:
+        '200':
+          description: Updated tenant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Tenant' }
+        '400': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Owner]
+      summary: Soft-delete tenant
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          deleted: { type: boolean }
+  /app/settings/:
+    get:
+      tags: [Owner]
+      summary: Get app company settings
+      responses:
+        '200':
+          description: App settings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/AppSettings' }
+    patch:
+      tags: [Owner]
+      summary: Update app company settings
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppSettings' }
+      responses:
+        '200':
+          description: Updated app settings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/AppSettings' }
+  /app/uploads/logo:
+    post:
+      tags: [Uploads]
+      summary: Upload platform/company logo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+      responses:
+        '201':
+          description: Uploaded logo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UploadResult' }
+  /app/audit:
+    get:
+      tags: [Audit]
+      summary: List platform audit entries
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Audit entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AuditEntry' }
+  /tenant/dashboard:
+    get:
+      tags: [Tenant]
+      summary: Tenant dashboard status
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200': { $ref: '#/components/responses/StatusOK' }
+  /tenant/me:
+    get:
+      tags: [Tenant]
+      summary: Current tenant member
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: Tenant member
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TenantMember' }
+  /tenant/users:
+    get:
+      tags: [Tenant]
+      summary: List tenant users
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: Tenant members
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/TenantMember' }
+  /tenant/users/invite:
+    post:
+      tags: [Tenant]
+      summary: Invite tenant user
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteTenantUserRequest' }
+      responses:
+        '201':
+          description: Invited member
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          member: { $ref: '#/components/schemas/TenantMember' }
+                          temporary_password: { type: string }
+  /tenant/users/{id}/role:
+    patch:
+      tags: [Tenant]
+      summary: Change tenant member role
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string }
+      responses:
+        '200':
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TenantMember' }
+  /tenant/users/{id}:
+    delete:
+      tags: [Tenant]
+      summary: Remove tenant member
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ID'
+      responses:
+        '200':
+          description: Removed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          removed: { type: boolean }
+  /tenant/settings/:
+    get:
+      tags: [Tenant]
+      summary: Get tenant settings
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: Tenant settings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TenantSettings' }
+    patch:
+      tags: [Tenant]
+      summary: Update tenant settings
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TenantSettings' }
+      responses:
+        '200':
+          description: Updated tenant settings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/TenantSettings' }
+  /tenant/audit:
+    get:
+      tags: [Audit]
+      summary: List tenant audit entries
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Tenant audit entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AuditEntry' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TenantID:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      description: Tenant selection hint. Backend verifies membership and active tenant status.
+      schema: { type: string, format: uuid }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+  responses:
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    StatusOK:
+      description: Status envelope
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessEnvelope'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+    ChangedOK:
+      description: Password changed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessEnvelope'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      changed: { type: boolean }
+  schemas:
+    SuccessEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: {}
+        request_id: { type: string }
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - unauthorized
+                - forbidden
+                - tenant_required
+                - tenant_access_denied
+                - tenant_check_failed
+                - password_change_required
+                - validation_failed
+                - invalid_upload
+                - image_required
+                - image_convert_failed
+                - upload_access_denied
+                - rate_limited
+                - service_unavailable
+                - not_found
+            message: { type: string }
+        request_id: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token: { type: string }
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password: { type: string, format: password }
+        new_password: { type: string, format: password }
+    UpdateProfileRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        avatar_url: { type: string }
+        bio: { type: string }
+    AuthPayload:
+      type: object
+      required: [user, access_token, refresh_token]
+      properties:
+        user: { $ref: '#/components/schemas/UserProfile' }
+        access_token: { type: string }
+        refresh_token: { type: string }
+        tenant_memberships:
+          type: array
+          items: { $ref: '#/components/schemas/TenantMembership' }
+    UserProfile:
+      type: object
+      required: [id, email, name, app_role, is_active, must_change_password]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        address: { type: string }
+        avatar_url: { type: string }
+        bio: { type: string }
+        app_role: { type: string }
+        is_active: { type: boolean }
+        must_change_password: { type: boolean }
+        tenant_memberships:
+          type: array
+          items: { $ref: '#/components/schemas/TenantMembership' }
+    TenantMembership:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        tenant_name: { type: string }
+        tenant_slug: { type: string }
+        role: { type: string }
+        is_active: { type: boolean }
+    Tenant:
+      type: object
+      required: [id, name, slug, status]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        status: { type: string, enum: [active, suspended, deleted] }
+    CreateTenantRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        slug: { type: string }
+    UpdateTenantRequest:
+      type: object
+      properties:
+        name: { type: string }
+        status: { type: string, enum: [active, suspended] }
+    TenantMember:
+      type: object
+      required: [id, user_id, name, email, tenant_id, role, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        tenant_id: { type: string, format: uuid }
+        role: { type: string }
+        is_active: { type: boolean }
+    InviteTenantUserRequest:
+      type: object
+      required: [name, email, role]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string }
+    TenantSettings:
+      type: object
+      properties:
+        tenant_id: { type: string, format: uuid }
+        display_name: { type: string }
+        logo_url: { type: string }
+        timezone: { type: string }
+        locale: { type: string }
+        currency: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+    AppSettings:
+      type: object
+      properties:
+        display_name: { type: string }
+        legal_name: { type: string }
+        logo_url: { type: string }
+        website_url: { type: string }
+        support_email: { type: string }
+        support_phone: { type: string }
+        timezone: { type: string }
+        locale: { type: string }
+        currency: { type: string }
+        address: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+    UploadResult:
+      type: object
+      required: [filename, url_path, size]
+      properties:
+        filename: { type: string }
+        url_path: { type: string }
+        size: { type: integer, format: int64 }
+    AuditEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actor_user_id: { type: string, format: uuid, nullable: true }
+        tenant_id: { type: string, format: uuid, nullable: true }
+        action: { type: string }
+        resource_type: { type: string }
+        resource_id: { type: string, format: uuid, nullable: true }
+        metadata:
+          type: object
+          additionalProperties: true
+        ip_address: { type: string }
+        user_agent: { type: string }
+        created_at: { type: string, format: date-time }

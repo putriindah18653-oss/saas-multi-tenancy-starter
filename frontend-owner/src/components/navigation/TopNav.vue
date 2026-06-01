@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { authService } from '@/services/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -93,8 +93,9 @@ async function onLogout() {
     if (auth.refreshToken) {
       await authService.logout(auth.refreshToken)
     }
-  } catch {
+  } catch (err) {
     serverLogoutFailed = true
+    console.warn('[logout] server revocation failed', err)
   }
   auth.clearSession()
   if (serverLogoutFailed) {
@@ -102,4 +103,23 @@ async function onLogout() {
   }
   router.push('/auth/login')
 }
+
+// Close profile menu on Escape and click-outside
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') profileMenuOpen.value = false
+}
+function onClickOutside(e: MouseEvent) {
+  const target = e.target as HTMLElement | null
+  if (!target) return
+  if (profileMenuOpen.value && !target.closest('.topbar-profile')) profileMenuOpen.value = false
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('click', onClickOutside)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('click', onClickOutside)
+})
 </script>

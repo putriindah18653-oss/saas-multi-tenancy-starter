@@ -9,10 +9,12 @@ import (
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/rbac"
 )
 
-func AuditRoutes(a *auth.Service, rsvc *rbac.Service, as *audit.Service) DomainRegistrar {
+func AuditRoutes(a *auth.Service, rsvc *rbac.Service, as *audit.Service, proxySecret string) DomainRegistrar {
 	return func(r chi.Router) {
 		h := handler.NewAuditHandler(as)
-		r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(a), middleware.RequirePermission(rsvc, "app.audit.read")).Get("/app/audit", h.AppList)
-		r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(a), middleware.RequireTenantAccess(rsvc), middleware.RequirePermission(rsvc, "tenant.audit.read")).Get("/tenant/audit", h.TenantList)
+		r.With(middleware.BodyLimit(middleware.DefaultBodyLimit))
+	r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(), middleware.RequirePermission(rsvc, "app.audit.read")).Get("/app/audit", h.AppList)
+		r.With(middleware.BodyLimit(middleware.DefaultBodyLimit))
+	r.With(middleware.RequireAuth(a), middleware.RequirePasswordChanged(), middleware.RequireTenantAccess(rsvc, proxySecret), middleware.RequirePermission(rsvc, "tenant.audit.read")).Get("/tenant/audit", h.TenantList)
 	}
 }

@@ -1,4 +1,4 @@
-import type { UserProfile } from '@/stores/auth'
+import type { UserProfile } from '@/contracts/api'
 
 export const OWNER_ROLES = ['owner-app', 'admin', 'super_admin', 'platform_admin', 'support_agent', 'billing_admin', 'auditor'] as const
 
@@ -14,8 +14,6 @@ export type OwnerPermission =
   | 'app.audit.read'
   | 'app.settings.read'
   | 'app.settings.update'
-
-export type Permission = OwnerPermission
 
 const allOwnerPermissions: OwnerPermission[] = [
   'app.tenants.read',

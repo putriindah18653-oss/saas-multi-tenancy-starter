@@ -23,11 +23,6 @@ export async function hydrateSession() {
     .refreshToken(auth.refreshToken)
     .then(async (refreshResponse) => {
       const refreshPayload = refreshResponse.data.data
-      auth.setSession({
-        accessToken: refreshPayload.access_token,
-        refreshToken: refreshPayload.refresh_token ?? auth.refreshToken,
-        user: refreshPayload.user ?? auth.user,
-      })
 
       const meResponse = await authService.me()
       const mePayload = meResponse.data.data
@@ -35,6 +30,7 @@ export async function hydrateSession() {
 
       auth.setSession({
         accessToken: refreshPayload.access_token,
+        refreshToken: refreshPayload.refresh_token ?? auth.refreshToken,
         user,
       })
       tenant.setMemberships(tenant_memberships)
@@ -42,7 +38,8 @@ export async function hydrateSession() {
 
       return true
     })
-    .catch(() => {
+    .catch((err) => {
+      console.error('[session] hydration failed', err)
       auth.clearSession()
       tenant.clearTenant()
       return false

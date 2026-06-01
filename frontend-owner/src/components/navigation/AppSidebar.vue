@@ -48,7 +48,8 @@
               :aria-expanded="isDropdownOpen(item.label)"
               @click="toggleDropdown(item.label)"
             >
-              <span class="nav-icon" v-html="item.icon"></span>
+              <span class="nav-icon" v-if="item.icon" v-html="item.icon"></span>
+              <span class="nav-icon" v-else aria-hidden="true">●</span>
               <span class="nav-label">{{ item.label }}</span>
               <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
               <span class="nav-chevron" :class="{ 'nav-chevron--open': isDropdownOpen(item.label) }">⌄</span>
@@ -84,7 +85,8 @@
               :title="ui.sidebarCollapsed ? item.label : undefined"
               @click="handleNavigate($event, navigate)"
             >
-              <span class="nav-icon" v-html="item.icon"></span>
+              <span class="nav-icon" v-if="item.icon" v-html="item.icon"></span>
+              <span class="nav-icon" v-else aria-hidden="true">●</span>
               <span class="nav-label">{{ item.label }}</span>
               <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
             </a>

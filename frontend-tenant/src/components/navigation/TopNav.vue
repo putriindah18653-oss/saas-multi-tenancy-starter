@@ -98,10 +98,12 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { authService } from '@/services/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useTenantStore } from '@/stores/tenant'
 import { useUiStore } from '@/stores/ui'
 
 defineProps<{ title: string }>()
 const auth = useAuthStore()
+const tenant = useTenantStore()
 const ui = useUiStore()
 const router = useRouter()
 const now = ref(new Date())
@@ -157,10 +159,12 @@ async function onLogout() {
     if (auth.refreshToken) {
       await authService.logout(auth.refreshToken)
     }
-  } catch {
+  } catch (err) {
     serverLogoutFailed = true
+    console.warn('[logout] server revocation failed', err)
   }
   auth.clearSession()
+  tenant.clearTenant()
   if (serverLogoutFailed) {
     alert('Warning: Server logout gagal. Session mungkin masih aktif di device lain.')
   }

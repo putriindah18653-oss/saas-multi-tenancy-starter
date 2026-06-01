@@ -16,7 +16,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
-
+.omc
 # Go
 bin/
 coverage.out
@@ -45,3 +45,4 @@ dist/
 build/
 .cache/
 .tmp/
+backend-api/api

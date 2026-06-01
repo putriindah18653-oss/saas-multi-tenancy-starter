@@ -127,8 +127,10 @@ async function load() {
   try {
     const { data } = await tenantSettingsService.get()
     Object.assign(form, data.data)
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Gagal memuat settings tenant.'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal memuat settings tenant.'
+    console.error('[tenant-settings] load failed', e)
   } finally {
     loading.value = false
   }
@@ -149,8 +151,10 @@ async function save() {
     const { data } = await tenantSettingsService.update(form)
     Object.assign(form, data.data)
     saved.value = true
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Gagal menyimpan settings tenant.'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal menyimpan settings tenant.'
+    console.error('[tenant-settings] save failed', e)
   } finally {
     loading.value = false
   }

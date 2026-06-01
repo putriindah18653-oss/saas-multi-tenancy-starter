@@ -1,19 +1,21 @@
 import { createRouter, createWebHistory, type NavigationGuardNext, type RouteLocationNormalized } from 'vue-router'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import TenantLayout from '@/layouts/TenantLayout.vue'
-import LoginPage from '@/pages/auth/LoginPage.vue'
-import ChangePasswordPage from '@/pages/auth/ChangePasswordPage.vue'
-import TenantDashboard from '@/pages/tenant/TenantDashboard.vue'
-import TenantUsersPage from '@/pages/tenant/users/TenantUsersPage.vue'
-import TenantSettingsPage from '@/pages/tenant/TenantSettingsPage.vue'
-import ProfileSettingsPage from '@/pages/tenant/ProfileSettingsPage.vue'
-import TenantAuditPage from '@/pages/tenant/TenantAuditPage.vue'
 import ForbiddenPage from '@/pages/errors/ForbiddenPage.vue'
 import TenantNotFoundPage from '@/pages/errors/TenantNotFoundPage.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { canTenant, type TenantPermission } from '@/services/rbac'
 import { hydrateSession } from '@/services/session'
+
+// Lazy-loaded page components for code splitting
+const LoginPage = () => import('@/pages/auth/LoginPage.vue')
+const ChangePasswordPage = () => import('@/pages/auth/ChangePasswordPage.vue')
+const TenantDashboard = () => import('@/pages/tenant/TenantDashboard.vue')
+const TenantUsersPage = () => import('@/pages/tenant/users/TenantUsersPage.vue')
+const TenantSettingsPage = () => import('@/pages/tenant/TenantSettingsPage.vue')
+const ProfileSettingsPage = () => import('@/pages/tenant/ProfileSettingsPage.vue')
+const TenantAuditPage = () => import('@/pages/tenant/TenantAuditPage.vue')
 
 const routes = [
   { path: '/', redirect: '/auth/login' },
@@ -23,7 +25,6 @@ const routes = [
     children: [
       { path: 'login', name: 'auth-login', component: LoginPage, meta: { guestOnly: true } },
       { path: 'change-password', name: 'auth-change-password', component: ChangePasswordPage, meta: { requiresAuth: true } },
-      { path: 'register-owner', redirect: { name: 'auth-login' } },
     ],
   },
   { path: '/forbidden', name: 'forbidden', component: ForbiddenPage, meta: { requiresAuth: true } },
@@ -94,4 +95,9 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
   }
 
   next()
+})
+
+// Update document.title on navigation
+router.afterEach((to) => {
+  document.title = (to.meta.title as string) || 'PortalOnline'
 })

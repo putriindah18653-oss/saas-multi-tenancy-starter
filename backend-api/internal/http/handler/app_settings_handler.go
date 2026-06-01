@@ -22,6 +22,7 @@ func NewAppSettingsHandler(s *tenant.Service, a *audit.Service, trustProxy bool)
 func (h *AppSettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	v, err := h.svc.AppSettings(r.Context())
 	if err != nil {
+		response.LogError(r, "load app settings failed", "error", err)
 		response.Error(w, r, 500, "app_settings_failed", "could not load company settings")
 		return
 	}
@@ -34,11 +35,14 @@ func (h *AppSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	v, err := h.svc.UpdateAppSettings(r.Context(), req)
 	if err != nil {
+		response.LogError(r, "update app settings failed", "error", err)
 		response.Error(w, r, 400, "app_settings_update_failed", "could not update company settings")
 		return
 	}
 	if ac, ok := middleware.AuthFromContext(r.Context()); ok && h.audit != nil {
-		_ = h.audit.Log(r.Context(), ac.UserID, "", "app.settings.update", "app_settings", "", map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
+		if err := h.audit.Log(r.Context(), ac.UserID, "", "app.settings.update", "app_settings", "", map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
+			response.LogError(r, "audit write failed", "action", "app.settings.update", "error", err)
+		}
 	}
 	response.Success(w, r, 200, v)
 }

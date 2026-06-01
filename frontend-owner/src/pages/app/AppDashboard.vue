@@ -102,8 +102,10 @@ onMounted(async () => {
   error.value = ''
   try {
     tenants.value = (await tenantsService.list()).data.data || []
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Failed to load tenants'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal memuat tenants'
+    console.error('[dashboard] load failed', e)
   } finally {
     loading.value = false
   }

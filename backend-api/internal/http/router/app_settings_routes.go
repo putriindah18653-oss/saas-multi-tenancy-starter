@@ -14,8 +14,9 @@ func AppSettingsRoutes(a *auth.Service, rsvc *rbac.Service, ts *tenant.Service, 
 	return func(r chi.Router) {
 		h := handler.NewAppSettingsHandler(ts, as, trustProxy)
 		r.Route("/app/settings", func(tr chi.Router) {
+			tr.Use(middleware.BodyLimit(middleware.DefaultBodyLimit))
 			tr.Use(middleware.RequireAuth(a))
-			tr.Use(middleware.RequirePasswordChanged(a))
+			tr.Use(middleware.RequirePasswordChanged())
 			tr.With(middleware.RequirePermission(rsvc, "app.settings.read")).Get("/", h.Get)
 			tr.With(middleware.RequirePermission(rsvc, "app.settings.update")).Patch("/", h.Update)
 		})

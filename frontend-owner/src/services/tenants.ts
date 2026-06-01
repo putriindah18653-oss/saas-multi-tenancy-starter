@@ -1,13 +1,5 @@
 import { ownerApi } from '@/services/api'
-
-export type Tenant = {
-  id: string
-  name: string
-  slug: string
-  status: string
-}
-
-type Envelope<T> = { success: boolean; data: T }
+import type { Envelope, Tenant } from '@/contracts/api'
 
 export const tenantsService = {
   list() {

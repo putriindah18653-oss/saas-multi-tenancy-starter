@@ -1,16 +1,7 @@
 import { tenantApi } from '@/services/api'
+import type { Envelope, TenantMember } from '@/contracts/api'
 
-export type TenantMember = {
-  id: string
-  user_id: string
-  name: string
-  email: string
-  tenant_id: string
-  role: string
-  is_active: boolean
-}
-
-type Envelope<T> = { success: boolean; data: T }
+export type { TenantMember }
 
 export const tenantUsersService = {
   me() {

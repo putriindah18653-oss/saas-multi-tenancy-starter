@@ -66,7 +66,10 @@
                     'date-range-day--selected': isSameDay(day.date, dateFrom) || isSameDay(day.date, dateTo),
                     'date-range-day--in-range': isInSelectedRange(day.date),
                   }"
+                  :aria-label="day.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })"
                   @click="selectCalendarDate(day.date)"
+                  @keydown.enter.prevent="selectCalendarDate(day.date)"
+                  @keydown.space.prevent="selectCalendarDate(day.date)"
                 >
                   {{ day.date.getDate() }}
                 </button>
@@ -151,7 +154,10 @@
                       type="button"
                       class="rounded-[var(--radius-button)] px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-white/[0.06] hover:text-[var(--text-primary)]"
                       :aria-expanded="expandedId === entry.id"
-                      @click="expandedId = expandedId === entry.id ? '' : entry.id"
+                      tabindex="0"
+                      @click="toggleEntry(entry.id)"
+                      @keydown.enter.prevent="toggleEntry(entry.id)"
+                      @keydown.space.prevent="toggleEntry(entry.id)"
                     >
                       {{ expandedId === entry.id ? '−' : '+' }}
                     </button>
@@ -196,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppButton from '@/components/common/AppButton.vue'
 import AppCard from '@/components/common/AppCard.vue'
 import UiAlert from '@/components/common/UiAlert.vue'
@@ -244,26 +250,24 @@ const calendarDays = computed(() => {
   })
 })
 
+// Precompute search index with compact JSON (avoids per-keystroke pretty-print)
+const searchIndex = computed(() => {
+  return entries.value.map((entry) => [
+    entry.id, entry.action, entry.resource_type, entry.resource_id,
+    entry.tenant_id, entry.actor_user_id, entry.ip_address, entry.user_agent,
+    JSON.stringify(entry.metadata),
+  ].map((v) => String(v ?? '').toLowerCase()))
+})
+
 const filteredEntries = computed(() => {
   const keyword = search.value.toLowerCase()
 
-  return entries.value.filter((entry) => {
+  return entries.value.filter((entry, index) => {
     if (actionFilter.value && entry.action !== actionFilter.value) return false
     if (resourceFilter.value && entry.resource_type !== resourceFilter.value) return false
     if (!isWithinDateRange(entry.created_at)) return false
     if (!keyword) return true
-
-    return [
-      entry.id,
-      entry.action,
-      entry.resource_type,
-      entry.resource_id,
-      entry.tenant_id,
-      entry.actor_user_id,
-      entry.ip_address,
-      entry.user_agent,
-      formatMetadata(entry.metadata),
-    ].some((value) => String(value || '').toLowerCase().includes(keyword))
+    return searchIndex.value[index]?.some((value) => value.includes(keyword)) ?? false
   })
 })
 
@@ -290,11 +294,17 @@ async function loadEntries() {
   error.value = ''
   try {
     entries.value = (await auditService.app(200)).data.data
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Gagal memuat audit log.'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal memuat audit log.'
+    console.error('[audit] load failed', e)
   } finally {
     loading.value = false
   }
+}
+
+function toggleEntry(id: string) {
+  expandedId.value = expandedId.value === id ? '' : id
 }
 
 function goToPage(target: number) {
@@ -501,5 +511,37 @@ function clientTitle(entry: AuditEntry) {
   return [entry.ip_address, entry.user_agent].filter(Boolean).join(' • ')
 }
 
-onMounted(loadEntries)
+// Close popovers on Escape and click-outside
+function closeAllPopovers() {
+  datePickerOpen.value = false
+  exportMenuOpen.value = false
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeAllPopovers()
+}
+
+function onClickOutside(e: MouseEvent) {
+  const target = e.target as HTMLElement | null
+  if (!target) return
+  if (datePickerOpen.value && !target.closest('.date-range-popover') && !target.closest('[aria-label="Filter tanggal audit log"]')) {
+    datePickerOpen.value = false
+  }
+  if (exportMenuOpen.value && !target.closest('[aria-label="Export audit log"]') && !target.closest('.export-menu-item')) {
+    exportMenuOpen.value = false
+  }
+}
+
+onMounted(() => {
+  loadEntries()
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('click', onClickOutside)
+  window.addEventListener('scroll', closeAllPopovers, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('click', onClickOutside)
+  window.removeEventListener('scroll', closeAllPopovers)
+})
 </script>

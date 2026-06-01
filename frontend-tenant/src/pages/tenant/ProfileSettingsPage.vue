@@ -91,7 +91,7 @@
               />
             </ProfileField>
 
-            <ProfileField title="New Password" helper="Minimal 8 karakter.">
+            <ProfileField title="New Password" helper="Minimal 12 karakter, ada huruf besar, huruf kecil, angka, simbol.">
               <PasswordInput
                 id="new-password"
                 v-model="passwordForm.new_password"
@@ -284,8 +284,10 @@ async function saveProfile() {
     successTitle.value = 'Profile tersimpan'
     successMessage.value = 'Data profile berhasil diperbarui.'
     success.value = true
-  } catch (err: any) {
-    error.value = err?.response?.data?.error?.message || 'Profile gagal disimpan.'
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { error?: { message?: string } } } }
+    error.value = e?.response?.data?.error?.message || 'Profile gagal disimpan.'
+    console.error('[profile] save failed', err)
   } finally {
     loading.value = false
   }
@@ -298,7 +300,7 @@ async function changePassword() {
     return
   }
   if (passwordForm.new_password.length < 8) {
-    error.value = 'Password baru minimal 8 karakter.'
+    error.value = 'Password baru minimal 12 karakter dengan huruf besar, kecil, angka, dan simbol.'
     success.value = false
     return
   }
@@ -315,8 +317,10 @@ async function changePassword() {
     successTitle.value = 'Password tersimpan'
     successMessage.value = 'Password berhasil diperbarui.'
     success.value = true
-  } catch (err: any) {
-    error.value = err?.response?.data?.error?.message || 'Password gagal disimpan.'
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { error?: { message?: string } } } }
+    error.value = e?.response?.data?.error?.message || 'Password gagal disimpan.'
+    console.error('[profile] password change failed', err)
   } finally {
     loading.value = false
   }

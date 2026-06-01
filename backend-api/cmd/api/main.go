@@ -21,6 +21,9 @@ import (
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/user"
 )
 
+// secureCookie is derived from !IsDevelopment() so that refresh-token
+// cookies are automatically Secure in staging/production. This requires
+// HTTPS; non-HTTPS production deployments will silently fail to set cookies.
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg, err := config.Load()
@@ -50,14 +53,14 @@ func main() {
 		Addr: cfg.HTTP.Addr,
 		Handler: apirouter.New(
 			apirouter.Dependencies{Config: cfg, DB: db, Redis: redisClient, Logger: logger},
-			apirouter.AuthRoutes(authSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy),
+			apirouter.AuthRoutes(authSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy, !cfg.IsDevelopment()),
 			apirouter.RBACRoutes(authSvc, rbacSvc),
-			apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
+			apirouter.AppTenantRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy),
 			apirouter.AppSettingsRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
 			apirouter.UploadRoutes(authSvc, rbacSvc, redisClient.Client, cfg.App.TrustProxy),
-			apirouter.TenantUserRoutes(authSvc, rbacSvc, userSvc, auditSvc, cfg.App.TrustProxy),
-			apirouter.TenantSettingsRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, cfg.App.TrustProxy),
-			apirouter.AuditRoutes(authSvc, rbacSvc, auditSvc),
+			apirouter.TenantUserRoutes(authSvc, rbacSvc, userSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy, cfg.App.InternalProxySecret),
+			apirouter.TenantSettingsRoutes(authSvc, rbacSvc, tenantSvc, auditSvc, redisClient.Client, cfg.App.TrustProxy, cfg.App.InternalProxySecret),
+			apirouter.AuditRoutes(authSvc, rbacSvc, auditSvc, cfg.App.InternalProxySecret),
 		),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

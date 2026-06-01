@@ -6,13 +6,21 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
 )
 
 type Service struct{ db *pgxpool.Pool }
 
+// Role constants for application and tenant roles.
+const (
+	AppRoleOwner    = "owner-app"
+	TenantRoleOwner = "owner-tenant"
+)
+
 func NewService(db *pgxpool.Pool) *Service { return &Service{db: db} }
 func (s *Service) HasAppRole(role, required string) bool {
-	return role == "owner-app" || role == required
+	return role == AppRoleOwner || role == required
 }
 func (s *Service) AppPermissions(ctx context.Context, appRole string) ([]string, error) {
 	if appRole == "" {
@@ -55,7 +63,7 @@ func (s *Service) HasPermission(ctx context.Context, appRole, tenantRole, key st
 	if len(key) > 7 && key[:7] == "tenant." {
 		role = tenantRole
 		scope = "tenant"
-	} else if appRole == "owner-app" {
+	} else if appRole == AppRoleOwner {
 		return true, nil
 	}
 	var ok bool
@@ -74,7 +82,9 @@ func (s *Service) HasPermission(ctx context.Context, appRole, tenantRole, key st
 	}
 }
 func (s *Service) TenantMembership(ctx context.Context, userID, tenantID string) (role string, ok bool, err error) {
-	err = s.db.QueryRow(ctx, "SELECT role FROM user_tenants WHERE user_id=$1 AND tenant_id=$2 AND is_active=true", userID, tenantID).Scan(&role)
+	err = database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID, UserID: userID}, func(q database.Querier) error {
+		return q.QueryRow(ctx, "SELECT ut.role FROM user_tenants ut JOIN tenants t ON t.id=ut.tenant_id WHERE ut.user_id=$1 AND ut.tenant_id=$2 AND ut.is_active=true AND t.status='active'", userID, tenantID).Scan(&role)
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", false, nil
 	}

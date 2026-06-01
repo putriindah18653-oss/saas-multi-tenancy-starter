@@ -83,8 +83,10 @@ async function submit() {
     }
     success.value = true
     router.push({ name: auth.defaultHomeRoute })
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Gagal mengganti password'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal mengganti password'
+    console.error('[change-password] failed', e)
   } finally {
     loading.value = false
   }

@@ -35,6 +35,7 @@ func (h *TenantUserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
 	m, err := h.svc.TenantMe(r.Context(), ac.UserID, tc.TenantID)
 	if err != nil {
+		response.LogError(r, "tenant me not found")
 		response.Error(w, r, 404, "member_not_found", "member not found")
 		return
 	}
@@ -48,6 +49,7 @@ func (h *TenantUserHandler) List(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
 	v, err := h.svc.List(r.Context(), tc.TenantID)
 	if err != nil {
+		response.LogError(r, "list tenant users failed", "error", err)
 		response.Error(w, r, 500, "tenant_users_failed", "could not list tenant users")
 		return
 	}
@@ -59,11 +61,13 @@ func (h *TenantUserHandler) Invite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Role == "" {
-		req.Role = "support"
+		response.Error(w, r, 400, "role_required", "role is required")
+		return
 	}
 	tc, _ := middleware.TenantFromContext(r.Context())
 	m, p, err := h.svc.Invite(r.Context(), tc.TenantID, req.Name, req.Email, req.Role)
 	if err != nil {
+		response.LogError(r, "invite user failed", "error", err)
 		response.Error(w, r, 400, "invite_failed", "could not invite user")
 		return
 	}
@@ -83,6 +87,7 @@ func (h *TenantUserHandler) ChangeRole(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	m, err := h.svc.ChangeRole(r.Context(), tc.TenantID, id, req.Role)
 	if err != nil {
+		response.LogError(r, "change role failed", "error", err)
 		response.Error(w, r, 400, "role_update_failed", "could not update role")
 		return
 	}
@@ -93,6 +98,7 @@ func (h *TenantUserHandler) Remove(w http.ResponseWriter, r *http.Request) {
 	tc, _ := middleware.TenantFromContext(r.Context())
 	id := chi.URLParam(r, "id")
 	if err := h.svc.Remove(r.Context(), tc.TenantID, id); err != nil {
+		response.LogError(r, "remove user failed", "error", err)
 		response.Error(w, r, 400, "remove_failed", "could not remove user")
 		return
 	}
@@ -104,5 +110,7 @@ func (h *TenantUserHandler) log(r *http.Request, tenantID, action, typ, id strin
 		return
 	}
 	ac, _ := middleware.AuthFromContext(r.Context())
-	_ = h.audit.Log(r.Context(), ac.UserID, tenantID, action, typ, id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent())
+	if err := h.audit.Log(r.Context(), ac.UserID, tenantID, action, typ, id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
+		response.LogError(r, "audit write failed", "action", action, "error", err)
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode"
@@ -16,12 +17,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/config"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
 )
 
 type Context struct {
-	UserID  string `json:"user_id"`
-	Email   string `json:"email"`
-	AppRole string `json:"app_role"`
+	UserID            string `json:"user_id"`
+	Email             string `json:"email"`
+	AppRole           string `json:"app_role"`
+	MustChangePassword bool   `json:"must_change_password"`
 }
 type TenantMembership struct {
 	ID         string `json:"id"`
@@ -95,7 +98,11 @@ func (s *Service) Login(ctx context.Context, email, password, ip, ua string) (*U
 	if err := VerifyPassword(hash, password); err != nil {
 		return nil, "", "", errors.New("invalid credentials")
 	}
-	u.Tenants, _ = s.Memberships(ctx, u.ID)
+	tenants, err := s.Memberships(ctx, u.ID)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("login: memberships: %w", err)
+	}
+	u.Tenants = tenants
 	a, r, err := s.Tokens(ctx, &u, ip, ua)
 	return &u, a, r, err
 }
@@ -108,7 +115,11 @@ func (s *Service) Me(ctx context.Context, userID string) (*UserProfile, error) {
 	if !u.IsActive {
 		return nil, errors.New("user inactive")
 	}
-	u.Tenants, _ = s.Memberships(ctx, u.ID)
+	tenants, err := s.Memberships(ctx, u.ID)
+	if err != nil {
+		return nil, fmt.Errorf("me: memberships: %w", err)
+	}
+	u.Tenants = tenants
 	return &u, nil
 }
 func (s *Service) UpdateProfile(ctx context.Context, userID, name, phone, address, avatarURL, bio string) (*UserProfile, error) {
@@ -147,22 +158,33 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, name, phone, addres
 	return s.Me(ctx, userID)
 }
 func (s *Service) Memberships(ctx context.Context, userID string) ([]TenantMembership, error) {
-	rows, err := s.db.Query(ctx, "SELECT ut.id,t.id,t.name,t.slug,ut.role,ut.is_active FROM user_tenants ut JOIN tenants t ON t.id=ut.tenant_id WHERE ut.user_id=$1 AND ut.is_active=true AND t.status='active' ORDER BY t.name", userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	out := []TenantMembership{}
-	for rows.Next() {
-		var m TenantMembership
-		if err := rows.Scan(&m.ID, &m.TenantID, &m.TenantName, &m.TenantSlug, &m.Role, &m.IsActive); err != nil {
-			return nil, err
+	err := database.WithRLS(ctx, s.db, database.RLSContext{UserID: userID}, func(q database.Querier) error {
+		rows, err := q.Query(ctx, "SELECT ut.id,t.id,t.name,t.slug,ut.role,ut.is_active FROM user_tenants ut JOIN tenants t ON t.id=ut.tenant_id WHERE ut.user_id=$1 AND ut.is_active=true AND t.status='active' ORDER BY t.name", userID)
+		if err != nil {
+			return err
 		}
-		out = append(out, m)
-	}
-	return out, rows.Err()
+		defer rows.Close()
+		for rows.Next() {
+			var m TenantMembership
+			if err := rows.Scan(&m.ID, &m.TenantID, &m.TenantName, &m.TenantSlug, &m.Role, &m.IsActive); err != nil {
+				return err
+			}
+			out = append(out, m)
+		}
+		return rows.Err()
+	})
+	return out, err
 }
 func (s *Service) Tokens(ctx context.Context, u *UserProfile, ip, ua string) (string, string, error) {
+	// Enforce per-user refresh token cap to limit table bloat.
+	const maxTokensPerUser = 10
+	var count int
+	err := s.db.QueryRow(ctx, "SELECT COUNT(*) FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL AND expires_at > now()", u.ID).Scan(&count)
+	if err == nil && count >= maxTokensPerUser {
+		// Remove oldest expired/unused tokens to make room.
+		_, _ = s.db.Exec(ctx, "DELETE FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL AND (expires_at <= now() OR id NOT IN (SELECT id FROM refresh_tokens WHERE user_id=$1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT $2))", u.ID, maxTokensPerUser-1)
+	}
 	a, err := s.token(u, "access", "", time.Duration(s.cfg.AccessTTLMinutes)*time.Minute)
 	if err != nil {
 		return "", "", err
@@ -246,7 +268,9 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, ip, ua string) (*Us
 	}
 	if revokedAt != nil || replacedBy != nil {
 		_, _ = tx.Exec(ctx, "UPDATE refresh_tokens SET revoked_at=COALESCE(revoked_at, now()) WHERE user_id=$1 AND revoked_at IS NULL", c.UserID)
-		_ = tx.Commit(ctx)
+		if err := tx.Commit(ctx); err != nil {
+			return nil, "", "", fmt.Errorf("refresh: commit token revoke: %w", err)
+		}
 		return nil, "", "", errors.New("refresh token reuse detected")
 	}
 	if time.Now().After(expiresAt) {

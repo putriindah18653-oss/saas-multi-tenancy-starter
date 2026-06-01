@@ -68,8 +68,10 @@ async function submit() {
     form.name = ''
     form.email = ''
     form.role = 'support'
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Invite failed'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal mengundang user'
+    console.error('[user-invite] failed', e)
   } finally {
     loading.value = false
   }

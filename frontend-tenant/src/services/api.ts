@@ -2,11 +2,13 @@ import axios, { AxiosError, type AxiosInstance } from 'axios'
 import { appEnv } from '@/app/env'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
+import type { ErrorEnvelope } from '@/contracts/api'
 
 function attachAuth(instance: AxiosInstance) {
   instance.interceptors.request.use((config) => {
     const auth = useAuthStore()
     config.headers = config.headers || {}
+    config.headers['X-Request-Start'] = String(Date.now())
 
     if (auth.accessToken) {
       config.headers.Authorization = `Bearer ${auth.accessToken}`
@@ -47,14 +49,16 @@ function refreshAccessToken() {
         })
         return data.access_token as string
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[api] token refresh failed', err)
         const tenant = useTenantStore()
         auth.clearSession()
         tenant.clearTenant()
+        refreshPromise = null
         return null
       })
       .finally(() => {
-        refreshPromise = null
+        if (refreshPromise) refreshPromise = null
       })
   }
 
@@ -63,24 +67,40 @@ function refreshAccessToken() {
 
 function attachUnauthorizedHandler(instance: AxiosInstance) {
   instance.interceptors.response.use(
-    (response) => response,
-    async (error: AxiosError) => {
-      const status = error.response?.status
-      const original = error.config as any
+    (response) => {
+      // Log response timing in dev
+      const start = Number(response.config.headers['X-Request-Start'])
+      const duration = start ? Date.now() - start : -1
+      if (import.meta.env.DEV) {
+        console.debug(`[api] ${response.config.method?.toUpperCase()} ${response.config.url} ${response.status} ${duration}ms`)
+      }
+      return response
+    },
+    async (error: AxiosError<ErrorEnvelope>) => {
+      const start = Number(error.config?.headers?.['X-Request-Start'])
+      const duration = start ? Date.now() - start : -1
+      console.error(
+        `[api] ${error.config?.method?.toUpperCase()} ${error.config?.url} ${error.response?.status ?? 'NETWORK'} ${duration}ms`,
+        error.response?.data ?? error.message,
+      )
 
-      if (status === 403 && (error.response?.data as any)?.error?.code === 'password_change_required') {
+      const status = error.response?.status
+      const original = error.config as Record<string, unknown> & { _retry?: boolean }
+      const errData = error.response?.data as ErrorEnvelope | undefined
+
+      if (status === 403 && errData?.error?.code === 'password_change_required') {
         if (window.location.pathname !== '/auth/change-password') window.location.assign('/auth/change-password')
         return Promise.reject(error)
       }
 
-      if (status === 401 && !original?._retry && !original?.url?.includes('/auth/refresh')) {
+      if (status === 401 && !original._retry && !(original.url && String(original.url).includes('/auth/refresh'))) {
         const auth = useAuthStore()
         if (auth.accessToken && auth.refreshToken) {
           original._retry = true
           const token = await refreshAccessToken()
           if (token) {
             original.headers = original.headers || {}
-            original.headers.Authorization = `Bearer ${token}`
+            ;(original.headers as Record<string, string>).Authorization = `Bearer ${token}`
             return instance(original)
           }
         }
@@ -113,5 +133,5 @@ function createApiClient({ includeTenant = false }: { includeTenant?: boolean } 
 export const authApi = createApiClient()
 export const tenantApi = createApiClient({ includeTenant: true })
 
-// Backward compatibility while services migrate. Prefer authApi or tenantApi.
+/** @deprecated Use {@link authApi} or {@link tenantApi} directly. */
 export const api = authApi

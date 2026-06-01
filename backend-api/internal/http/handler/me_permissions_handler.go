@@ -33,6 +33,7 @@ func (h *MeHandler) Tenants(w http.ResponseWriter, r *http.Request) {
 	ac, _ := middleware.AuthFromContext(r.Context())
 	m, err := h.auth.Memberships(r.Context(), ac.UserID)
 	if err != nil {
+		response.LogError(r, "tenant lookup failed", "error", err)
 		response.Error(w, r, 500, "tenant_lookup_failed", "could not load tenants")
 		return
 	}

@@ -2,20 +2,9 @@ import axios from 'axios'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { appEnv } from '@/app/env'
+import type { UserProfile } from '@/contracts/api'
 
-export type UserProfile = {
-  id: string
-  email: string
-  name?: string
-  full_name?: string
-  phone?: string
-  address?: string
-  avatar_url?: string
-  bio?: string
-  app_role?: string
-  permissions?: string[]
-  must_change_password?: boolean
-}
+export type { UserProfile } from '@/contracts/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null)
@@ -55,7 +44,8 @@ export const useAuthStore = defineStore('auth', () => {
       })
       await fetchPermissions()
       return true
-    } catch {
+    } catch (err) {
+      console.error('[auth] session restore failed, clearing session', err)
       clearSession()
       return false
     } finally {
@@ -72,9 +62,12 @@ export const useAuthStore = defineStore('auth', () => {
       })
       const perms = res.data?.data?.app_permissions
       if (Array.isArray(perms) && user.value) {
-        user.value = { ...user.value, permissions: perms }
+        // Mutate in place to avoid triggering watchers that spread would cause
+        ;(user.value as Record<string, unknown>).permissions = perms
       }
-    } catch { /* fallback to role-based permissions */ }
+    } catch (err) {
+      console.warn('[auth] permission fetch failed, falling back to role-based', err)
+    }
   }
 
   return { accessToken, refreshToken, user, restoring, isAuthenticated, defaultHomeRoute, setSession, clearSession, tryRestoreSession, fetchPermissions }

@@ -2,6 +2,7 @@ package response
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/common"
@@ -41,4 +42,11 @@ func RequestID(r *http.Request) string {
 		return v
 	}
 	return r.Header.Get(common.RequestIDHeader)
+}
+
+// LogError logs a structured error message with the request ID for correlation.
+func LogError(r *http.Request, msg string, args ...any) {
+	attrs := []any{"request_id", RequestID(r)}
+	attrs = append(attrs, args...)
+	slog.Default().Error(msg, attrs...)
 }

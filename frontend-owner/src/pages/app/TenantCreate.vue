@@ -52,8 +52,10 @@ async function submit() {
   try {
     const res = await tenantsService.create({ name: form.name, slug: form.slug || undefined })
     router.push(`/app/tenants/${res.data.data.id}`)
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Failed to create tenant'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal membuat tenant'
+    console.error('[tenant-create] failed', e)
   } finally {
     loading.value = false
   }
