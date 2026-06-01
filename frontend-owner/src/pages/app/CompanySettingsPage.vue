@@ -45,6 +45,7 @@
               title="Company logo"
               hint="Drag & drop atau klik. Auto resize 200×200."
               meta="PNG, JPG, WebP, GIF, AVIF. Max 8 MB."
+              alt="Company logo"
               :initials="logoInitials"
               :resolve-url="resolveAssetUrl"
             />
@@ -154,9 +155,11 @@ async function load() {
   try {
     const { data } = await appSettingsService.get()
     Object.assign(form, defaultAppCompanySettings, data.data)
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
     Object.assign(form, defaultAppCompanySettings)
-    error.value = e?.response?.data?.error?.message || 'Gagal memuat settings.'
+    error.value = err?.response?.data?.error?.message || 'Gagal memuat settings.'
+    console.error('[company-settings] load failed', e)
   } finally {
     loading.value = false
   }
@@ -175,8 +178,10 @@ async function save() {
     const { data } = await appSettingsService.update(form)
     Object.assign(form, defaultAppCompanySettings, data.data)
     saved.value = true
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Gagal menyimpan settings.'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { error?: { message?: string } } } }
+    error.value = err?.response?.data?.error?.message || 'Gagal menyimpan settings.'
+    console.error('[company-settings] save failed', e)
   } finally {
     loading.value = false
   }

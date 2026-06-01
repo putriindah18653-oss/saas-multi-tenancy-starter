@@ -1,19 +1,21 @@
 import { createRouter, createWebHistory, type NavigationGuardNext, type RouteLocationNormalized } from 'vue-router'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AppAdminLayout from '@/layouts/AppAdminLayout.vue'
-import LoginPage from '@/pages/auth/LoginPage.vue'
-import ChangePasswordPage from '@/pages/auth/ChangePasswordPage.vue'
-import AppDashboard from '@/pages/app/AppDashboard.vue'
-import TenantList from '@/pages/app/TenantList.vue'
-import TenantCreate from '@/pages/app/TenantCreate.vue'
-import TenantDetail from '@/pages/app/TenantDetail.vue'
-import AppAuditPage from '@/pages/app/AppAuditPage.vue'
-import ProfileSettingsPage from '@/pages/app/ProfileSettingsPage.vue'
-import CompanySettingsPage from '@/pages/app/CompanySettingsPage.vue'
 import ForbiddenPage from '@/pages/errors/ForbiddenPage.vue'
-import UnderDevelopmentPage from '@/pages/app/UnderDevelopmentPage.vue'
 import { useAuthStore } from '@/stores/auth'
 import { canOwner, type OwnerPermission } from '@/services/rbac'
+
+// Lazy-loaded page components for code splitting
+const LoginPage = () => import('@/pages/auth/LoginPage.vue')
+const ChangePasswordPage = () => import('@/pages/auth/ChangePasswordPage.vue')
+const AppDashboard = () => import('@/pages/app/AppDashboard.vue')
+const TenantList = () => import('@/pages/app/TenantList.vue')
+const TenantCreate = () => import('@/pages/app/TenantCreate.vue')
+const TenantDetail = () => import('@/pages/app/TenantDetail.vue')
+const AppAuditPage = () => import('@/pages/app/AppAuditPage.vue')
+const ProfileSettingsPage = () => import('@/pages/app/ProfileSettingsPage.vue')
+const CompanySettingsPage = () => import('@/pages/app/CompanySettingsPage.vue')
+const UnderDevelopmentPage = () => import('@/pages/app/UnderDevelopmentPage.vue')
 
 const routes = [
   { path: '/', redirect: '/auth/login' },
@@ -96,4 +98,9 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
   }
 
   next()
+})
+
+// Update document.title on navigation
+router.afterEach((to) => {
+  document.title = (to.meta.title as string) || 'PortalOnline'
 })

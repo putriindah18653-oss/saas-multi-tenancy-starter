@@ -55,6 +55,7 @@
                   hint="Drop or select a cover image"
                   meta="PNG, JPG, WebP. Recommended 200×200."
                   shape="circle"
+                  alt="Profile photo of {{ displayName }}"
                   :initials="initials"
                   :resolve-url="resolveAvatarUrl"
                 />
@@ -97,9 +98,9 @@
               </div>
             </ProfileField>
 
-            <ProfileField title="New Password" helper="Minimal 8 karakter, gunakan kombinasi aman.">
+            <ProfileField title="New Password" helper="Minimal 12 karakter, gunakan kombinasi aman.">
               <div class="relative">
-                <input id="new-password" v-model="passwordForm.new_password" :type="passwordVisible.new ? 'text' : 'password'" autocomplete="new-password" required minlength="8" class="owner-input pr-11" placeholder="Password baru" />
+                <input id="new-password" v-model="passwordForm.new_password" :type="passwordVisible.new ? 'text' : 'password'" autocomplete="new-password" required minlength="12" class="owner-input pr-11" placeholder="Password baru" />
                 <button type="button" class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[var(--text-muted)] transition hover:text-[var(--text-primary)]" :aria-label="passwordVisible.new ? 'Hide new password' : 'Show new password'" @click="passwordVisible.new = !passwordVisible.new">
                   <svg v-if="passwordVisible.new" class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -117,7 +118,7 @@
 
             <ProfileField title="Confirm Password" helper="Ulangi password baru.">
               <div class="relative">
-                <input id="confirm-password" v-model="passwordForm.confirm_password" :type="passwordVisible.confirm ? 'text' : 'password'" autocomplete="new-password" required minlength="8" class="owner-input pr-11" placeholder="Konfirmasi password baru" />
+                <input id="confirm-password" v-model="passwordForm.confirm_password" :type="passwordVisible.confirm ? 'text' : 'password'" autocomplete="new-password" required minlength="12" class="owner-input pr-11" placeholder="Konfirmasi password baru" />
                 <button type="button" class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-[var(--text-muted)] transition hover:text-[var(--text-primary)]" :aria-label="passwordVisible.confirm ? 'Hide confirm password' : 'Show confirm password'" @click="passwordVisible.confirm = !passwordVisible.confirm">
                   <svg v-if="passwordVisible.confirm" class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -277,8 +278,10 @@ async function saveProfile() {
     successTitle.value = 'Profile tersimpan'
     successMessage.value = 'Data profile berhasil diperbarui.'
     success.value = true
-  } catch (err: any) {
-    error.value = err?.response?.data?.error?.message || 'Profile gagal disimpan.'
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { error?: { message?: string } } } }
+    error.value = e?.response?.data?.error?.message || 'Profile gagal disimpan.'
+    console.error('[profile] save failed', err)
   } finally {
     loading.value = false
   }
@@ -303,8 +306,10 @@ async function changePassword() {
     successTitle.value = 'Password tersimpan'
     successMessage.value = 'Password berhasil diperbarui.'
     success.value = true
-  } catch (err: any) {
-    error.value = err?.response?.data?.error?.message || 'Password gagal disimpan.'
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { error?: { message?: string } } } }
+    error.value = e?.response?.data?.error?.message || 'Password gagal disimpan.'
+    console.error('[profile] password change failed', err)
   } finally {
     loading.value = false
   }

@@ -1,27 +1,5 @@
 import { ownerApi } from '@/services/api'
-
-export type AppCompanySettings = {
-  display_name: string
-  legal_name: string
-  logo_url: string
-  website_url: string
-  support_email: string
-  support_phone: string
-  timezone: string
-  locale: string
-  currency: string
-  address: string
-  metadata: Record<string, unknown>
-}
-
-type Envelope<T> = { success: boolean; data: T }
-
-type UploadResult = {
-  filename: string
-  disk_path: string
-  url_path: string
-  size: number
-}
+import type { AppCompanySettings, Envelope, UploadResult } from '@/contracts/api'
 
 export const defaultAppCompanySettings: AppCompanySettings = {
   display_name: 'PortalOnline',

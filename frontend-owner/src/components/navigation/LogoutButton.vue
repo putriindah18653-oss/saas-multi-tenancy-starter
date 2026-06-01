@@ -20,8 +20,8 @@ async function onLogout() {
     if (auth.refreshToken) {
       await authService.logout(auth.refreshToken)
     }
-  } catch {
-    // ignore network errors on logout UI
+  } catch (err) {
+    console.warn('[logout] server revocation failed', err)
   }
   auth.clearSession()
   router.push('/auth/login')

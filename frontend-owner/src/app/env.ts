@@ -1,3 +1,9 @@
+/**
+ * Resolves the backend API base URL at runtime.
+ *
+ * Priority: VITE_API_BASE_URL env var → current origin:8080 → localhost:8080.
+ * Uses `window.location` in the browser and falls back to `localhost` during SSR/SSG.
+ */
 function resolveApiBaseUrl() {
   const configured = import.meta.env.VITE_API_BASE_URL as string | undefined
   if (configured) return configured
@@ -9,6 +15,7 @@ function resolveApiBaseUrl() {
   return 'http://localhost:8080/api/v1'
 }
 
+/** Resolved API base URL. Use `appEnv.apiBaseUrl` elsewhere. */
 export const appEnv = {
   apiBaseUrl: resolveApiBaseUrl(),
 }
