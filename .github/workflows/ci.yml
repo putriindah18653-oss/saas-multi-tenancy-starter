@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    name: Backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: saas_starter
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d saas_starter"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/saas_starter?sslmode=disable
+        run: go run ./cmd/migrate up
+        working-directory: backend-api
+      - name: Test
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/saas_starter?sslmode=disable
+          REDIS_ADDR: localhost:6379
+          JWT_ACCESS_SECRET: ci-test-access-secret
+          JWT_REFRESH_SECRET: ci-test-refresh-secret
+        run: go test ./...
+        working-directory: backend-api
+
+  frontend-owner:
+    name: Frontend Owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: frontend-owner
+      - run: npm run build
+        working-directory: frontend-owner
+
+  frontend-tenant:
+    name: Frontend Tenant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: frontend-tenant
+      - run: npm run build
+        working-directory: frontend-tenant
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-owner, frontend-tenant]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t saas-starter-backend:ci backend-api
+      - name: Build owner frontend image
+        run: docker build -t saas-starter-frontend-owner:ci frontend-owner
+      - name: Build tenant frontend image
+        run: docker build -t saas-starter-frontend-tenant:ci frontend-tenant

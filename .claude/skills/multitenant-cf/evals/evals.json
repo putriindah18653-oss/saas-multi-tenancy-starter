@@ -1,0 +1,158 @@
+{
+  "skill_name": "saas-multitenancy",
+  "skill_path": "/home/indatech/Documents/AI/SKILL/multitenant-cf",
+  "purpose": "Evaluate whether the skill guides a model toward safe, production-ready multi-tenant SaaS architecture and implementation choices for Golang + PostgreSQL RLS + Redis/asynq + Vue + Tailwind + Cloudflare Workers.",
+  "evals": [
+    {
+      "id": "architecture-implementation-plan",
+      "skill": "saas-multitenancy",
+      "prompt": "Saya mau build SaaS multi-tenant dengan custom domain per tenant, Golang backend, PostgreSQL RLS, Redis/asynq, Vue dashboard, public tenant site di Cloudflare Workers, dan billing. Susun arsitektur dan urutan implementasi production-ready. Jangan buat runnable app, saya butuh blueprint implementasi.",
+      "expected_output": "Uses the skill decision tree; covers tenant/domain resolution, Cloudflare Workers/KV routing, Go API, PostgreSQL RLS with app_user/platform_user/migrator_user, Redis/asynq, Vue dashboard SPA, public SSR/pre-render, SSO/RBAC, billing, media, local dev, testing, deployment, metrics/monitoring, release, incident, security, data retention. Mentions docs clusters instead of one flat file. States X-Tenant-ID is only a hint and JWT tenant_id is authoritative after auth.",
+      "must_include": [
+        "PostgreSQL RLS with ENABLE/FORCE and USING/WITH CHECK",
+        "app_user vs platform_user vs migrator_user",
+        "X-Tenant-ID is only a hint",
+        "Vue dashboard SPA and public SSR/pre-render on Cloudflare Workers",
+        "local-development.md, testing.md, deployment.md, metrics-alerting.md, monitoring-stack.md",
+        "rate limiting, email delivery, billing webhooks, release management, incident response"
+      ],
+      "must_not_include": [
+        "React or Next.js implementation as primary UI",
+        "trust X-Tenant-ID without JWT cross-check",
+        "skip RLS because app already filters tenant_id",
+        "treat this repository as a runnable starter kit"
+      ]
+    },
+    {
+      "id": "billing-webhook-safety",
+      "skill": "saas-multitenancy",
+      "prompt": "Tambahkan webhook pembayaran Midtrans/Duitku untuk subscription tenant. Jelaskan handler Go, verifikasi signature, idempotency, RLS tenant context, update invoice/subscription, metrics, tests, dan failure behavior. Fokus jangan sampai forged webhook atau retry bikin subscription salah.",
+      "expected_output": "Routes webhook as public but signature-authenticated; verifies signature before state change; uses durable PostgreSQL idempotency/UNIQUE in same transaction as billing state change; Redis only optional duplicate suppression; cross-checks amount/currency/status against stored invoice; resolves tenant from stored payment/invoice not request header; applies transition under tenant context/RLS; returns 200 only after success/already processed and 5xx to trigger retry; uses canonical error envelope for API errors; includes tests and metrics.",
+      "must_include": [
+        "signature verification before any state change",
+        "durable PostgreSQL idempotency, Redis is not source of truth",
+        "UNIQUE(gateway, gateway_ref/event_id)",
+        "cross-check invoice amount/status",
+        "store.InTenant or equivalent RLS tenant context",
+        "billing webhook metrics and tests"
+      ],
+      "must_not_include": [
+        "use Redis SETNX as the only processed marker",
+        "ack 200 before durable DB success",
+        "trust tenant_id, amount, or status from client without stored invoice cross-check",
+        "route payment webhook through JWT authenticated dashboard proxy"
+      ]
+    },
+    {
+      "id": "public-ssr-cache-frontend",
+      "skill": "saas-multitenancy",
+      "prompt": "Saya perlu public website tiap tenant SEO-friendly di Cloudflare Worker. Buat strategy SSR/pre-render, tenant branding, dark/light theme tanpa FOUC, cache API + KV, dan error handling. Jangan jadikan public site SPA-only.",
+      "expected_output": "Keeps dashboard as Vue SPA and public site as SSR/pre-render; uses Cloudflare Worker tenant/domain resolution, KV tenant config, per-tenant cache keys, Cache API then KV then backend; caches only public GET without Authorization; includes tenant_id and cache version in keys; explains purge strategy; uses ui-public dark/light theme boot script to avoid FOUC; uses canonical API error envelope for JSON API responses; includes SEO/social/Lighthouse/hydration/a11y checks from frontend-production.md.",
+      "must_include": [
+        "public site is SSR/pre-render, not SPA-only",
+        "Cache API -> KV -> backend",
+        "tenant_id and cache version in every public cache key",
+        "never cache authenticated or non-GET responses",
+        "themeBootScript or no-FOUC tenant theme approach",
+        "frontend-production.md hardening gates"
+      ],
+      "must_not_include": [
+        "React/Next.js patterns",
+        "cache responses with Authorization header",
+        "cache key only by hostname/path without tenant_id/cache version",
+        "convert dashboard guidance into public SSR guidance"
+      ]
+    },
+    {
+      "id": "production-deployment-ops",
+      "skill": "saas-multitenancy",
+      "prompt": "Siapkan production deployment single VPS untuk Go API/worker, Postgres, Redis, Cloudflare Workers, Prometheus/Grafana/Alertmanager, backup, release, rollback, dan incident response. Jelaskan urutan dan checklist aman.",
+      "expected_output": "Uses deployment.md, release-management.md, metrics-alerting.md, monitoring-stack.md, backup-recovery.md, security-hardening.md, incident-response.md and testing.md together. Describes systemd or Docker Compose backend stack, migrations as migrator_user before app deploy, Go API/worker separation, libvips for worker, internal-only metrics/readyz, public healthz, Prometheus/Grafana/Alertmanager private access, offsite encrypted backups and restore drills, pre-release gates, smoke tests, rollback including Cloudflare Worker previous known-good SHA/artifact, and incident roles/runbooks.",
+      "must_include": [
+        "migrations run as migrator_user, not app startup",
+        "API and worker deployment separation",
+        "internal /metrics and /readyz, public /healthz only",
+        "Prometheus/Grafana/Alertmanager not public",
+        "off-site encrypted backups plus restore drill",
+        "release gates, smoke tests, rollback, incident response"
+      ],
+      "must_not_include": [
+        "claim single systemd restart is zero-downtime",
+        "expose /metrics publicly",
+        "run migrations as app_user",
+        "store backups only on same VPS"
+      ]
+    },
+    {
+      "id": "media-endpoint-security-review",
+      "skill": "saas-multitenancy",
+      "prompt": "Review desain endpoint /api/dashboard/media untuk upload gambar tenant. Pastikan tenant isolation, RBAC, rate limit, async processing, canonical API contract, metrics, tests, dan security sudah benar.",
+      "expected_output": "Checks authenticated dashboard route, JWT tenant_id cross-check, X-Tenant-ID as hint only, RBAC permission for media write/read/delete, tenant-scoped object keys and DB rows under RLS, presigned/direct upload rules, MIME sniffing and size limits, antivirus/content validation if applicable, async image processing via worker/asynq with libvips, idempotency where needed, Redis rate limits, canonical success/error envelopes, audit logs, metrics, and unit/integration/E2E/security tests.",
+      "must_include": [
+        "JWT tenant_id cross-check and RLS tenant context",
+        "RBAC permission checks",
+        "tenant-scoped storage keys and DB rows",
+        "MIME/size validation and async worker processing",
+        "Redis rate limiting",
+        "canonical API error envelope and contract tests"
+      ],
+      "must_not_include": [
+        "trust client-supplied tenant_id or X-Tenant-ID as authority",
+        "store uploads in global unscoped object keys",
+        "process unvalidated file content synchronously in request path",
+        "return ad-hoc error shapes"
+      ]
+    },
+    {
+      "id": "tenant-lifecycle-privacy",
+      "skill": "saas-multitenancy",
+      "prompt": "Rancang tenant lifecycle dari trial, active, suspended, trial_expired, deletion_requested, deleted. Sertakan billing relation, data export, deletion/anonymization, backup caveat, cache/media purge, admin access, dan tests.",
+      "expected_output": "Uses tenant-onboarding.md, billing.md, data-retention-privacy.md, database-schema.md, backend-golang.md, testing.md. Defines lifecycle states and allowed transitions; separates billing status from tenant availability; enforces access behavior in API/Worker; supports export before deletion; schedules deletion with legal hold support; anonymizes/deletes user data; purges Redis/KV/cache/media/derived data; explains backups cannot be surgically purged but expire by retention; logs admin access/impersonation; includes RLS/privacy regression tests.",
+      "must_include": [
+        "tenant lifecycle states and transition rules",
+        "billing relation but not sole source of tenant authz",
+        "tenant export before deletion",
+        "cache/KV/Redis/media purge",
+        "backup retention caveat",
+        "legal hold and admin access audit"
+      ],
+      "must_not_include": [
+        "delete tenant data immediately without export/legal-hold check",
+        "promise removal from already-created backups",
+        "let billing webhook directly bypass lifecycle policy",
+        "ignore RLS/privacy tests"
+      ]
+    },
+    {
+      "id": "local-dev-to-ci-quality-gates",
+      "skill": "saas-multitenancy",
+      "prompt": "Buat developer onboarding dan CI quality gates untuk project ini. Backend dan DB/Redis harus jalan via Docker lokal. Harus ada seed tenant, Mailpit/MinIO, Worker local strategy, RLS tests, Go/Vue/Worker tests, Playwright, dan security regression.",
+      "expected_output": "Uses local-development.md and testing.md as canonical docs. Provides Docker Compose local dependencies with Postgres roles, Redis, MinIO, Mailpit; .env examples; local tenant domains; seed data; Makefile commands; Wrangler local/dev strategy; local email/media/webhook simulation; CI stages for Go tests, SQL/RLS assertions, Vue tests, Worker tests, Playwright, security regression, lint/typecheck, contract tests; Definition of Done.",
+      "must_include": [
+        "Docker Compose Postgres and Redis for local dev",
+        "Mailpit and MinIO/local S3 equivalent",
+        "seed tenant and local custom domain strategy",
+        "RLS isolation tests in CI",
+        "Go, Vue, Worker, Playwright tests",
+        "security regression and contract tests"
+      ],
+      "must_not_include": [
+        "manual-only QA as sufficient",
+        "skip RLS tests because policies exist",
+        "require production Cloudflare resources for all local tests",
+        "use React testing stack as primary"
+      ]
+    }
+  ],
+  "grading_rubric": {
+    "pass_threshold": 0.8,
+    "criteria": [
+      "Selects the correct reference-doc cluster for the task",
+      "Preserves tenant-isolation trust boundaries",
+      "Uses Vue/Cloudflare frontend architecture without React/Next.js drift",
+      "Uses canonical API success/error contracts",
+      "Includes production-readiness concerns when relevant",
+      "Avoids dangerous shortcuts listed in must_not_include"
+    ]
+  }
+}
