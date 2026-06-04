@@ -1,9 +1,4 @@
-DELETE FROM user_tenants
-WHERE user_id = '33333333-3333-3333-3333-333333333333'
-  AND tenant_id = '22222222-2222-2222-2222-222222222222';
-
-DELETE FROM users
-WHERE email = 'admin@tenant.local';
-
-DELETE FROM tenants
-WHERE slug = 'tenant-alpha-demo';
+-- Reserved for compatibility with existing migration numbering.
+-- Demo users are intentionally not removed by schema migration rollback.
+-- For local/dev cleanup, run:
+--   psql "$DATABASE_URL" -f seeds/dev/demo_users.down.sql

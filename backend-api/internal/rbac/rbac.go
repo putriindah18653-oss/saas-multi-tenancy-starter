@@ -81,9 +81,18 @@ func (s *Service) HasPermission(ctx context.Context, appRole, tenantRole, key st
 		return false, nil
 	}
 }
+// tenantMembershipQuery resolves a user's active membership for a tenant.
+//
+// It joins the tenants table and only returns a role when BOTH the membership
+// is active (ut.is_active) AND the tenant itself is active (t.status='active').
+// This guarantees that suspended or soft-deleted tenants are forbidden for every
+// tenant-scoped endpoint that goes through RequireTenantAccess via X-Tenant-ID,
+// regardless of whether the membership row is still active.
+const tenantMembershipQuery = "SELECT ut.role FROM user_tenants ut JOIN tenants t ON t.id = ut.tenant_id WHERE ut.user_id=$1 AND ut.tenant_id=$2 AND ut.is_active=true AND t.status='active'"
+
 func (s *Service) TenantMembership(ctx context.Context, userID, tenantID string) (role string, ok bool, err error) {
 	err = database.WithRLS(ctx, s.db, database.RLSContext{TenantID: tenantID, UserID: userID}, func(q database.Querier) error {
-		return q.QueryRow(ctx, "SELECT ut.role FROM user_tenants ut JOIN tenants t ON t.id=ut.tenant_id WHERE ut.user_id=$1 AND ut.tenant_id=$2 AND ut.is_active=true AND t.status='active'", userID, tenantID).Scan(&role)
+		return q.QueryRow(ctx, tenantMembershipQuery, userID, tenantID).Scan(&role)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", false, nil

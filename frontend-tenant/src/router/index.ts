@@ -60,7 +60,7 @@ router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormal
   const auth = useAuthStore()
   const tenant = useTenantStore()
 
-  if (!auth.hydrated && (to.meta.requiresAuth || auth.refreshToken)) {
+  if (!auth.hydrated && (to.meta.requiresAuth || to.meta.guestOnly)) {
     await hydrateSession()
   }
 

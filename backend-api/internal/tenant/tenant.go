@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/database"
@@ -136,6 +137,12 @@ func (s *Service) Update(ctx context.Context, id, name, status string) (Tenant, 
 	return t, err
 }
 func (s *Service) Delete(ctx context.Context, id string) error {
-	_, err := s.db.Exec(ctx, "UPDATE tenants SET status='deleted',updated_at=now() WHERE id=$1", id)
-	return err
+	tag, err := s.db.Exec(ctx, "UPDATE tenants SET status='deleted',updated_at=now() WHERE id=$1 AND status<>'deleted'", id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }

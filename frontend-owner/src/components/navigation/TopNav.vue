@@ -30,12 +30,14 @@
           class="topbar-profile-trigger"
           aria-label="Profile menu"
           :aria-expanded="profileMenuOpen"
+          aria-controls="owner-profile-menu"
+          aria-haspopup="menu"
           @click="profileMenuOpen = !profileMenuOpen"
         >
           <span class="topbar-avatar">{{ initials }}</span>
         </button>
 
-        <div v-if="profileMenuOpen" class="topbar-profile-menu">
+        <div v-if="profileMenuOpen" id="owner-profile-menu" class="topbar-profile-menu" role="menu">
           <div class="topbar-profile-menu-user">
             <span class="topbar-profile-menu-avatar">{{ initials }}</span>
             <div class="min-w-0">
@@ -43,10 +45,10 @@
               <span>{{ auth.user?.email || 'guest' }}</span>
             </div>
           </div>
-          <RouterLink class="topbar-profile-menu-item" to="/app/profile" @click="profileMenuOpen = false">
+          <RouterLink class="topbar-profile-menu-item" to="/app/profile" role="menuitem" @click="profileMenuOpen = false">
             Profile
           </RouterLink>
-          <button type="button" class="topbar-profile-menu-item topbar-profile-menu-item--danger" @click="onLogout">
+          <button type="button" class="topbar-profile-menu-item topbar-profile-menu-item--danger" role="menuitem" @click="onLogout">
             Logout
           </button>
         </div>

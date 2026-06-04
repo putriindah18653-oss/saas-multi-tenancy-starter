@@ -3,49 +3,61 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { appEnv } from '@/app/env'
 import type { UserProfile } from '@/contracts/api'
+import { devWarn, toLogContext } from '@/utils/devLogger'
+
+const REFRESH_TOKEN_KEY='***'
+
+function clearStoredRefreshToken() {
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+}
 
 export type { UserProfile } from '@/contracts/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null)
-  const refreshToken = ref<string | null>(sessionStorage.getItem('refresh_token'))
+  const hasRefreshCookie = ref(true)
   const user = ref<UserProfile | null>(null)
   const restoring = ref(false)
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const defaultHomeRoute = computed(() => 'app-home')
 
-  function setSession(payload: { accessToken: string; refreshToken?: string; user?: UserProfile | null }) {
+  function setSession(payload: { accessToken: string; refreshToken?: string | null; user?: UserProfile | null }) {
     accessToken.value = payload.accessToken
-    if (payload.refreshToken) {
-      refreshToken.value = payload.refreshToken
-      sessionStorage.setItem('refresh_token', payload.refreshToken)
-    }
+    hasRefreshCookie.value = true
+    clearStoredRefreshToken()
     if (payload.user !== undefined) user.value = payload.user
   }
 
   function clearSession() {
     accessToken.value = null
-    refreshToken.value = null
-    sessionStorage.removeItem('refresh_token')
+    hasRefreshCookie.value = false
+    clearStoredRefreshToken()
     user.value = null
   }
 
   async function tryRestoreSession(): Promise<boolean> {
-    if (accessToken.value || !refreshToken.value) return !!accessToken.value
+    if (accessToken.value) return true
     restoring.value = true
     try {
-      const res = await axios.post(`${appEnv.apiBaseUrl}/auth/refresh`, { refresh_token: refreshToken.value }, { timeout: 15000 })
-      const data = res.data.data
+      const res = await fetch(`${appEnv.apiBaseUrl}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      if (!res.ok) throw new Error(`refresh failed: ${res.status}`)
+      const json = await res.json()
+      const data = json.data
       setSession({
         accessToken: data.access_token,
-        refreshToken: data.refresh_token,
         user: data.user ?? null,
       })
       await fetchPermissions()
       return true
     } catch (err) {
-      console.error('[auth] session restore failed, clearing session', err)
+      devWarn('auth.refresh_failed', toLogContext(err))
       clearSession()
       return false
     } finally {
@@ -66,9 +78,9 @@ export const useAuthStore = defineStore('auth', () => {
         ;(user.value as Record<string, unknown>).permissions = perms
       }
     } catch (err) {
-      console.warn('[auth] permission fetch failed, falling back to role-based', err)
+      devWarn('auth.permissions_failed_fallback_used', toLogContext(err))
     }
   }
 
-  return { accessToken, refreshToken, user, restoring, isAuthenticated, defaultHomeRoute, setSession, clearSession, tryRestoreSession, fetchPermissions }
+  return { accessToken, refreshToken: hasRefreshCookie, user, restoring, isAuthenticated, defaultHomeRoute, setSession, clearSession, tryRestoreSession, fetchPermissions }
 })

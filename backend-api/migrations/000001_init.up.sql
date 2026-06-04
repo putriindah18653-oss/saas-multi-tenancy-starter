@@ -74,24 +74,6 @@ CREATE INDEX idx_audit_logs_actor_user_id ON audit_logs(actor_user_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE UNIQUE INDEX idx_users_single_owner_app ON users(app_role) WHERE app_role = 'owner-app';
 
--- Demo-only platform owner seed.
--- Initial credentials: owner@app.local / DemoPass123!
--- Production rule: replace/remove this seed and provision owner-app through a one-time,
--- secret-backed bootstrap process before exposing the service.
-INSERT INTO users (id, name, email, password_hash, app_role, is_active)
-VALUES (
-  '11111111-1111-1111-1111-111111111111',
-  'Platform Owner',
-  'owner@app.local',
-  crypt('DemoPass123!', gen_salt('bf')),
-  'owner-app',
-  TRUE
-)
-ON CONFLICT (email) DO UPDATE
-SET name = EXCLUDED.name,
-    app_role = EXCLUDED.app_role,
-    is_active = EXCLUDED.is_active,
-    updated_at = now();
 
 INSERT INTO roles(scope, name, description) VALUES
 ('app','owner-app','Application owner'),('app','admin','Application admin'),('app','finance','Application finance'),('app','support','Application support'),('app','marketing','Application marketing'),

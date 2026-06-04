@@ -3,6 +3,7 @@ import { appEnv } from '@/app/env'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import type { ErrorEnvelope } from '@/contracts/api'
+import { devWarn, toLogContext } from '@/utils/devLogger'
 
 function attachAuth(instance: AxiosInstance) {
   instance.interceptors.request.use((config) => {
@@ -35,22 +36,24 @@ let refreshPromise: Promise<string | null> | null = null
 
 function refreshAccessToken() {
   const auth = useAuthStore()
-  if (!auth.refreshToken) return Promise.resolve(null)
 
   if (!refreshPromise) {
     refreshPromise = authApi
-      .post('/auth/refresh', { refresh_token: auth.refreshToken })
+      .post('/auth/refresh', {})
       .then((response) => {
-        const data = response.data.data
+        const data = response.data?.data
+        if (!data?.access_token || typeof data.access_token !== 'string') {
+          throw new Error('invalid auth response')
+        }
         auth.setSession({
           accessToken: data.access_token,
-          refreshToken: data.refresh_token ?? auth.refreshToken,
           user: data.user ?? auth.user,
         })
         return data.access_token as string
       })
       .catch((err) => {
         console.error('[api] token refresh failed', err)
+        devWarn('auth.refresh_failed', toLogContext(err))
         const tenant = useTenantStore()
         auth.clearSession()
         tenant.clearTenant()
@@ -95,7 +98,7 @@ function attachUnauthorizedHandler(instance: AxiosInstance) {
 
       if (status === 401 && !original._retry && !(original.url && String(original.url).includes('/auth/refresh'))) {
         const auth = useAuthStore()
-        if (auth.accessToken && auth.refreshToken) {
+        if (auth.accessToken) {
           original._retry = true
           const token = await refreshAccessToken()
           if (token) {
@@ -121,6 +124,7 @@ function createApiClient({ includeTenant = false }: { includeTenant?: boolean } 
   const instance = axios.create({
     baseURL: appEnv.apiBaseUrl,
     timeout: 15000,
+    withCredentials: true,
   })
 
   attachAuth(instance)

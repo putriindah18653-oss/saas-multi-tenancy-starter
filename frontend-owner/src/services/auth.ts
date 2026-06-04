@@ -14,7 +14,7 @@ type AuthResponse = {
   data: {
     user: UserProfile
     access_token: string
-    refresh_token: string
+    refresh_token?: string
   }
 }
 
@@ -22,11 +22,11 @@ export const authService = {
   login(payload: LoginPayload) {
     return authApi.post<AuthResponse>('/auth/login', payload)
   },
-  refreshToken(refresh_token: string) {
-    return authApi.post<{ data: { user?: UserProfile; access_token: string; refresh_token?: string } }>('/auth/refresh', { refresh_token })
+  refreshToken() {
+    return authApi.post<{ data: { user?: UserProfile; access_token: string; refresh_token?: string } }>('/auth/refresh', {})
   },
-  logout(refresh_token: string) {
-    return authApi.post('/auth/logout', { refresh_token })
+  logout(_refresh_token?: string | null) {
+    return authApi.post('/auth/logout', {})
   },
   changePassword(payload: { current_password: string; new_password: string }) {
     return authApi.post<{ data: { changed: boolean } }>('/me/password', payload)
@@ -41,7 +41,6 @@ export const authService = {
     const form = new FormData()
     form.append('image', file)
     return authApi.post<{ data: { filename: string; url_path: string } }>('/me/uploads/avatar', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000,
     })
   },

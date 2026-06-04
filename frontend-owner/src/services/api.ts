@@ -2,6 +2,7 @@ import axios, { AxiosError, type AxiosInstance } from 'axios'
 import { appEnv } from '@/app/env'
 import { useAuthStore } from '@/stores/auth'
 import type { ErrorEnvelope } from '@/contracts/api'
+import { devWarn, toLogContext } from '@/utils/devLogger'
 
 /**
  * Creates an Axios instance with auth interceptors, token refresh, and
@@ -12,6 +13,7 @@ function createApiClient(): AxiosInstance {
   const instance = axios.create({
     baseURL: appEnv.apiBaseUrl,
     timeout: 15000,
+    withCredentials: true,
   })
 
   // Attach access token to every request

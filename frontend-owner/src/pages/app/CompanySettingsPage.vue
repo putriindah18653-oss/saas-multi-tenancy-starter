@@ -165,7 +165,39 @@ async function load() {
   }
 }
 
+function validateForm(): string {
+  if (form.website_url) {
+    try {
+      const url = new URL(form.website_url)
+      if (!['http:', 'https:'].includes(url.protocol)) return 'Website harus memakai URL http atau https.'
+    } catch {
+      return 'Website harus berupa URL valid.'
+    }
+  }
+
+  if (form.logo_url && form.logo_url.startsWith('http')) {
+    try {
+      const url = new URL(form.logo_url)
+      if (!['http:', 'https:'].includes(url.protocol)) return 'Logo URL harus memakai URL http atau https.'
+    } catch {
+      return 'Logo URL harus valid.'
+    }
+  }
+
+  if (!timezoneOptions.includes(form.timezone)) return 'Timezone tidak valid.'
+  if (!localeOptions.includes(form.locale)) return 'Locale tidak valid.'
+  if (!currencyOptions.includes(form.currency)) return 'Currency tidak valid.'
+  return ''
+}
+
 async function save() {
+  const validationError = validateForm()
+  if (validationError) {
+    error.value = validationError
+    saved.value = false
+    return
+  }
+
   loading.value = true
   error.value = ''
   saved.value = false

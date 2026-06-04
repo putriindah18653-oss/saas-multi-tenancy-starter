@@ -6,14 +6,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/audit"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/auth"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/config"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/handler"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/middleware"
 	"github.com/redis/go-redis/v9"
 )
 
-func AuthRoutes(s *auth.Service, a *audit.Service, redisClient *redis.Client, trustProxy, secureCookie bool) DomainRegistrar {
+func AuthRoutes(s *auth.Service, a *audit.Service, redisClient *redis.Client, trustProxy bool, jwtCfg config.JWTConfig) DomainRegistrar {
 	return func(r chi.Router) {
-		h := handler.NewAuthHandler(s, a, trustProxy, secureCookie)
+		h := handler.NewAuthHandler(s, a, trustProxy, jwtCfg)
 		r.With(middleware.RateLimit(redisClient, "auth:login", 10, time.Minute, trustProxy)).Post("/auth/login", h.Login)
 		r.With(middleware.RateLimit(redisClient, "auth:refresh", 30, time.Minute, trustProxy)).Post("/auth/refresh", h.Refresh)
 		r.Group(func(pr chi.Router) {

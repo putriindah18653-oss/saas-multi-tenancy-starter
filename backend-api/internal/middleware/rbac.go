@@ -52,7 +52,14 @@ func RequirePermission(s *rbac.Service, key string) func(http.Handler) http.Hand
 				response.Error(w, r, 403, "forbidden", "tenant context required")
 				return
 			}
-			allowed, err := s.HasPermission(r.Context(), ac.AppRole, tc.Role, key)
+			// Only trust the tenant role when a tenant context is actually present.
+			// Without this, a zero-value TenantContext{} (tc.Role == "") could be
+			// passed for app-scoped checks; keep it explicit and empty otherwise.
+			tenantRole := ""
+			if tenantOK {
+				tenantRole = tc.Role
+			}
+			allowed, err := s.HasPermission(r.Context(), ac.AppRole, tenantRole, key)
 			if err != nil {
 				response.Error(w, r, 500, "permission_check_failed", "could not check permission")
 				return

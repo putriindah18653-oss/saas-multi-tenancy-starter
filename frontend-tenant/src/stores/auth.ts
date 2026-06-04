@@ -6,18 +6,14 @@ export type { UserProfile } from '@/contracts/api'
 
 const REFRESH_TOKEN_KEY = 'refresh_token'
 
-function readStoredRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY)
-}
-
-function persistRefreshToken(token: string | null) {
-  if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token)
-  else localStorage.removeItem(REFRESH_TOKEN_KEY)
+function clearStoredRefreshToken() {
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
 }
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null)
-  const refreshToken = ref<string | null>(readStoredRefreshToken())
+  const hasRefreshCookie = ref(true)
   const user = ref<UserProfile | null>(null)
   const hydrated = ref(false)
   const hydrating = ref(false)
@@ -27,10 +23,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setSession(payload: { accessToken: string; refreshToken?: string | null; user?: UserProfile | null }) {
     accessToken.value = payload.accessToken
-    if (payload.refreshToken !== undefined) {
-      refreshToken.value = payload.refreshToken
-      persistRefreshToken(payload.refreshToken)
-    }
+    hasRefreshCookie.value = true
+    clearStoredRefreshToken()
     if (payload.user !== undefined) user.value = payload.user
   }
 
@@ -41,8 +35,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   function clearSession() {
     accessToken.value = null
-    refreshToken.value = null
-    persistRefreshToken(null)
+    hasRefreshCookie.value = false
+    clearStoredRefreshToken()
     user.value = null
     hydrated.value = true
     hydrating.value = false
@@ -50,7 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     accessToken,
-    refreshToken,
+    refreshToken: hasRefreshCookie,
     user,
     hydrated,
     hydrating,

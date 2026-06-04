@@ -1,7 +1,6 @@
 <template>
   <button
-    type="button"
-    class="rounded-[var(--radius-button)] border border-[var(--border-strong)] bg-white/[0.03] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-white/10 hover:text-[var(--text-primary)]"
+    class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
     @click="onLogout"
   >
     Logout
@@ -12,19 +11,20 @@
 import { useRouter } from 'vue-router'
 import { authService } from '@/services/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useTenantStore } from '@/stores/tenant'
+
 const router = useRouter()
 const auth = useAuthStore()
+const tenant = useTenantStore()
 
 async function onLogout() {
   try {
-    if (auth.refreshToken) {
-      await authService.logout(auth.refreshToken)
-    }
-  } catch (err) {
+    await authService.logout()
+  } catch {
     // ignore network errors on logout UI
-    console.warn('[logout] server revocation failed', err)
   }
   auth.clearSession()
+  tenant.clearTenant()
   router.push('/auth/login')
 }
 </script>

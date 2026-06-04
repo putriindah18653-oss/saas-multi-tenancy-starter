@@ -14,11 +14,11 @@ export const authService = {
   login(payload: LoginPayload) {
     return authApi.post<Envelope<{ user: UserProfile; access_token: string; refresh_token: string; tenant_memberships: TenantMembership[] }>>('/auth/login', payload)
   },
-  refreshToken(refresh_token: string) {
-    return authApi.post<Envelope<{ user?: UserProfile; access_token: string; refresh_token?: string }>>('/auth/refresh', { refresh_token })
+  refreshToken(_refresh_token?: string | null) {
+    return authApi.post<{ data: { user?: UserProfile; access_token: string; refresh_token?: string } }>('/auth/refresh', {})
   },
-  logout(refresh_token: string) {
-    return authApi.post('/auth/logout', { refresh_token })
+  logout(_refresh_token?: string | null) {
+    return authApi.post('/auth/logout', {})
   },
   changePassword(payload: { current_password: string; new_password: string }) {
     return authApi.post<Envelope<{ changed: boolean }>>('/me/password', payload)
@@ -33,7 +33,6 @@ export const authService = {
     const form = new FormData()
     form.append('image', file)
     return authApi.post<{ data: { filename: string; url_path: string } }>('/me/uploads/avatar', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000,
     })
   },

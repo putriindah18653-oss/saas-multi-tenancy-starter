@@ -17,8 +17,37 @@ import { useRoute } from 'vue-router'
 import TopNav from '@/components/navigation/TopNav.vue'
 import AppSidebar from '@/components/navigation/AppSidebar.vue'
 import { useUiStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/auth'
+import { canOwner, type OwnerPermission } from '@/services/rbac'
+
+type SidebarChildItem = {
+  to: string
+  label: string
+  badge?: string
+  mock?: boolean
+  permission?: OwnerPermission
+}
+
+type SidebarLinkItem = {
+  type?: 'link'
+  to?: string
+  label: string
+  icon?: string
+  children?: SidebarChildItem[]
+  badge?: string
+  mock?: boolean
+  permission?: OwnerPermission
+}
+
+type SidebarGroupItem = {
+  type: 'group'
+  label: string
+}
+
+type SidebarItem = SidebarLinkItem | SidebarGroupItem
 
 const ui = useUiStore()
+const auth = useAuthStore()
 const route = useRoute()
 const pageTitle = computed(() => (route.meta.title as string | undefined) || 'Dashboard')
 
@@ -35,20 +64,18 @@ const icons = {
   health: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sidebar-icon"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
 }
 
-const items = [
+const baseItems: SidebarItem[] = [
   { type: 'group', label: 'Overview' },
-  { to: '/app', label: 'Dashboard', icon: icons.dashboard },
+  { to: '/app', label: 'Dashboard', icon: icons.dashboard, permission: 'app.tenants.read' },
 
   { type: 'group', label: 'Operations' },
   {
     label: 'Customers',
     icon: icons.customers,
-    mock: true,
+    permission: 'app.tenants.read',
     children: [
-      { to: '/app/tenants', label: 'All Customers' },
-      { to: '/app/tenants?status=trial', label: 'Trial Requests', badge: '3', mock: true },
-      { to: '/app/tenants?status=active', label: 'Active', mock: true },
-      { to: '/app/tenants?status=suspended', label: 'Suspended', mock: true },
+      { to: '/app/tenants', label: 'All Customers', permission: 'app.tenants.read' },
+      { to: '/app/tenants/create', label: 'Create Customer', permission: 'app.tenants.create' },
     ],
   },
   {
@@ -88,11 +115,39 @@ const items = [
   { to: '/app/todo', label: 'SaaS Todo', icon: icons.todo, mock: true },
 
   { type: 'group', label: 'System' },
-  { to: '/app/audit', label: 'Audit Log', icon: icons.audit },
-  { to: '/app/settings', label: 'Settings', icon: icons.settings },
+  { to: '/app/audit', label: 'Audit Log', icon: icons.audit, permission: 'app.audit.read' },
+  { to: '/app/settings', label: 'Settings', icon: icons.settings, permission: 'app.settings.read' },
   { to: '/app/security', label: 'Security', icon: icons.security, mock: true },
   { to: '/app/health', label: 'System Health', icon: icons.health, badge: 'OK', mock: true },
 ]
+
+function canSeeItem(item: SidebarLinkItem) {
+  return !item.permission || canOwner(auth.user, item.permission)
+}
+
+const items = computed<SidebarItem[]>(() => {
+  const visible: SidebarItem[] = []
+
+  for (const item of baseItems) {
+    if (item.type === 'group') {
+      visible.push(item)
+      continue
+    }
+
+    if (!canSeeItem(item)) continue
+
+    const children = item.children?.filter(canSeeItem)
+    if (item.children && (!children || children.length === 0)) continue
+
+    visible.push(children ? { ...item, children } : item)
+  }
+
+  return visible.filter((item, index, arr) => {
+    if (item.type !== 'group') return true
+    const next = arr[index + 1]
+    return !!next && next.type !== 'group'
+  })
+})
 
 onMounted(() => {
   ui.syncDesktopSidebar()

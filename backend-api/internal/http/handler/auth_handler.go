@@ -7,19 +7,20 @@ import (
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/audit"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/auth"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/common"
+	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/config"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/response"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/middleware"
 )
 
 type AuthHandler struct {
-	svc          *auth.Service
-	audit        *audit.Service
-	trustProxy   bool
-	secureCookie bool
+	svc        *auth.Service
+	audit      *audit.Service
+	trustProxy bool
+	cookie     config.JWTConfig
 }
 
-func NewAuthHandler(s *auth.Service, a *audit.Service, trustProxy, secureCookie bool) *AuthHandler {
-	return &AuthHandler{svc: s, audit: a, trustProxy: trustProxy, secureCookie: secureCookie}
+func NewAuthHandler(s *auth.Service, a *audit.Service, trustProxy bool, cookie config.JWTConfig) *AuthHandler {
+	return &AuthHandler{svc: s, audit: a, trustProxy: trustProxy, cookie: cookie}
 }
 
 type loginReq struct {
@@ -60,8 +61,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshReq
-	if !decode(w, r, &req) {
-		return
+	if r.Body != nil && r.ContentLength != 0 {
+		if !decode(w, r, &req) {
+			return
+		}
 	}
 	token := req.RefreshToken
 	if token == "" {
@@ -84,8 +87,10 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	var req logoutReq
-	if !decode(w, r, &req) {
-		return
+	if r.Body != nil && r.ContentLength != 0 {
+		if !decode(w, r, &req) {
+			return
+		}
 	}
 	token := req.RefreshToken
 	if token == "" {
@@ -93,13 +98,11 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 			token = c.Value
 		}
 	}
-	if token == "" {
-		response.Error(w, r, 400, "refresh_token_required", "refresh token required")
-		return
-	}
-	if err := h.svc.RevokeRefreshToken(r.Context(), token); err != nil {
-		response.Error(w, r, 500, "logout_failed", "could not revoke refresh token")
-		return
+	if token != "" {
+		if err := h.svc.RevokeRefreshToken(r.Context(), token); err != nil {
+			response.Error(w, r, 500, "logout_failed", "could not revoke refresh token")
+			return
+		}
 	}
 	h.clearRefreshCookie(w)
 	if ac, ok := middleware.AuthFromContext(r.Context()); ok {
@@ -114,8 +117,8 @@ func (h *AuthHandler) setRefreshCookie(w http.ResponseWriter, token string) {
 		Value:    token,
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   h.secureCookie,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   h.cookie.RefreshCookieSecure,
+		SameSite: h.cookieSameSite(),
 		MaxAge:   7 * 24 * 60 * 60, // 7 days
 	})
 }
@@ -126,10 +129,20 @@ func (h *AuthHandler) clearRefreshCookie(w http.ResponseWriter) {
 		Value:    "",
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   h.secureCookie,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   h.cookie.RefreshCookieSecure,
+		SameSite: h.cookieSameSite(),
 		MaxAge:   -1,
 	})
+}
+func (h *AuthHandler) cookieSameSite() http.SameSite {
+	switch h.cookie.RefreshCookieSameSite {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	ac, ok := middleware.AuthFromContext(r.Context())

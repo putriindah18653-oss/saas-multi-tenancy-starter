@@ -108,6 +108,7 @@ type SidebarChildItem = {
   label: string
   badge?: string
   mock?: boolean
+  permission?: string
 }
 
 type SidebarLinkItem = {
@@ -118,6 +119,7 @@ type SidebarLinkItem = {
   children?: SidebarChildItem[]
   badge?: string
   mock?: boolean
+  permission?: string
 }
 
 type SidebarGroupItem = {

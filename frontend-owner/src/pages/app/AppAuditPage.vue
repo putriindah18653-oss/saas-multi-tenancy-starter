@@ -37,6 +37,8 @@
               type="button"
               class="owner-input flex h-10 items-center justify-between text-left"
               :aria-expanded="datePickerOpen"
+              aria-controls="audit-date-range-popover"
+              aria-haspopup="dialog"
               aria-label="Filter tanggal audit log"
               @click="datePickerOpen = !datePickerOpen"
             >
@@ -44,7 +46,7 @@
               <span class="text-[var(--text-muted)]">⌄</span>
             </button>
 
-            <div v-if="datePickerOpen" class="date-range-popover">
+            <div v-if="datePickerOpen" id="audit-date-range-popover" class="date-range-popover" role="dialog" aria-label="Filter tanggal audit log">
               <div class="date-range-header">
                 <button type="button" class="date-range-nav" aria-label="Previous month" @click="shiftMonth(-1)">‹</button>
                 <p>{{ calendarTitle }}</p>
@@ -89,6 +91,8 @@
             class="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--button-secondary-bg)] text-[var(--text-primary)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-55"
             aria-label="Export audit log"
             :aria-expanded="exportMenuOpen"
+            aria-controls="audit-export-menu"
+            aria-haspopup="menu"
             :disabled="filteredEntries.length === 0"
             @click="exportMenuOpen = !exportMenuOpen"
           >
@@ -100,14 +104,20 @@
 
           <div
             v-if="exportMenuOpen"
+            id="audit-export-menu"
             class="absolute right-0 top-12 z-20 w-40 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-elevated)] py-1 shadow-2xl"
+            role="menu"
           >
-            <button type="button" class="export-menu-item" @click="exportData('csv')">Export CSV</button>
-            <button type="button" class="export-menu-item" @click="exportData('xlsx')">Export XLSX</button>
-            <button type="button" class="export-menu-item" @click="exportData('pdf')">Export PDF</button>
+            <button type="button" class="export-menu-item" role="menuitem" @click="exportData('csv')">Export current filtered CSV</button>
+            <button type="button" class="export-menu-item" role="menuitem" @click="exportData('xlsx')">Export current filtered XLSX</button>
+            <button type="button" class="export-menu-item" role="menuitem" @click="exportData('pdf')">Export current filtered PDF</button>
           </div>
         </div>
       </div>
+
+      <UiAlert title="Showing latest loaded window only" tone="warning">
+        Only latest 200 audit entries are loaded. Filters, pagination, and export apply only to this current loaded window.
+      </UiAlert>
 
       <div v-if="loading" class="space-y-3">
         <div v-for="i in 7" :key="i" class="h-14 animate-pulse rounded-[var(--radius-button)] bg-white/[0.05]" />
@@ -155,6 +165,8 @@
                       class="rounded-[var(--radius-button)] px-2 py-1 text-sm text-[var(--text-muted)] hover:bg-white/[0.06] hover:text-[var(--text-primary)]"
                       :aria-expanded="expandedId === entry.id"
                       tabindex="0"
+                      :aria-controls="`audit-entry-${entry.id}`"
+                      :aria-label="`${expandedId === entry.id ? 'Collapse' : 'Expand'} audit entry ${entry.id}`"
                       @click="toggleEntry(entry.id)"
                       @keydown.enter.prevent="toggleEntry(entry.id)"
                       @keydown.space.prevent="toggleEntry(entry.id)"
@@ -163,7 +175,7 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="expandedId === entry.id" class="bg-white/[0.02]">
+                <tr v-if="expandedId === entry.id" :id="`audit-entry-${entry.id}`" class="bg-white/[0.02]">
                   <td colspan="7" class="space-y-3">
                     <div class="grid gap-3 text-xs md:grid-cols-2">
                       <div>
@@ -187,7 +199,7 @@
         </div>
 
         <div class="mt-4 flex flex-col gap-3 border-t border-[var(--border)] pt-4 text-sm text-[var(--text-muted)] md:flex-row md:items-center md:justify-between">
-          <p>Showing {{ startRow }}–{{ endRow }} of {{ filteredEntries.length }}</p>
+          <p>Showing {{ startRow }}–{{ endRow }} of {{ filteredEntries.length }} current loaded rows (latest 200 max)</p>
           <div class="flex flex-wrap items-center gap-2">
             <AppButton variant="ghost" :disabled="page === 1" @click="goToPage(1)">First</AppButton>
             <AppButton variant="ghost" :disabled="page === 1" @click="goToPage(page - 1)">Prev</AppButton>

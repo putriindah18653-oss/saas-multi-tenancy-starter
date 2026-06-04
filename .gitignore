@@ -6,12 +6,16 @@ Thumbs.db
 *.swp
 *.swo
 
+# Hermes project config
+.hermes/
+
 # Environment files
 .env
 .env.*
 !.env.example
-!backend/.env.example
-!frontend/.env.example
+!backend-api/.env.example
+!frontend-owner/.env.example
+!frontend-tenant/.env.example
 
 # Logs
 *.log
@@ -21,15 +25,19 @@ logs/
 bin/
 coverage.out
 *.test
-backend/tmp/
-backend/.air.toml
+backend-api/tmp/
+backend-api/.air.toml
 
 # Node / frontend
 node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/coverage/
+frontend-owner/node_modules/
+frontend-owner/dist/
+frontend-owner/.vite/
+frontend-owner/coverage/
+frontend-tenant/node_modules/
+frontend-tenant/dist/
+frontend-tenant/.vite/
+frontend-tenant/coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

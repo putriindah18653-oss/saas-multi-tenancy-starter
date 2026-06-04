@@ -32,6 +32,7 @@
           title="Notifications"
           aria-label="Notifications"
           :aria-expanded="isNotificationOpen"
+          aria-controls="tenant-notification-menu"
           aria-haspopup="menu"
           @click="toggleNotifications"
         >
@@ -42,7 +43,7 @@
           <span />
         </button>
 
-        <div v-if="isNotificationOpen" class="notification-dropdown" role="menu">
+        <div v-if="isNotificationOpen" id="tenant-notification-menu" class="notification-dropdown" role="menu">
           <div class="notification-dropdown__header">
             <div>
               <p>Notifikasi</p>
@@ -64,13 +65,14 @@
           class="topbar-profile-trigger"
           aria-label="Profile menu"
           :aria-expanded="profileMenuOpen"
+          aria-controls="tenant-profile-menu"
           aria-haspopup="menu"
           @click="profileMenuOpen = !profileMenuOpen"
         >
           <span class="topbar-avatar">{{ initials }}</span>
         </button>
 
-        <div v-if="profileMenuOpen" class="topbar-profile-menu" role="menu">
+        <div v-if="profileMenuOpen" id="tenant-profile-menu" class="topbar-profile-menu" role="menu">
           <div class="topbar-profile-menu-user">
             <span class="topbar-profile-menu-avatar">{{ initials }}</span>
             <div class="min-w-0">

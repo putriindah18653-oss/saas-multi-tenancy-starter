@@ -26,7 +26,6 @@ export const appSettingsService = {
     const form = new FormData()
     form.append('image', file)
     return ownerApi.post<Envelope<UploadResult>>('/app/uploads/logo', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000,
     })
   },

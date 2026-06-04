@@ -73,15 +73,39 @@ Catatan dev:
 - `frontend-tenant` source mounted: `./frontend-tenant:/app`
 - `node_modules` disimpan di Docker named volumes
 - `CHOKIDAR_USEPOLLING=true` untuk file watching di bind mounts
+- `VITE_DEV_SERVER_HOST`, `VITE_DEV_SERVER_PORT`, `VITE_HMR_HOST`, dan `VITE_HMR_PORT` tersedia di masing-masing frontend `.env.example` untuk dev/HMR lewat Docker atau LAN.
+- Untuk production frontend, set `VITE_API_BASE_URL` eksplisit. Dev fallback otomatis ke `http(s)://<frontend-host>:8080/api/v1`, tetapi production build tidak boleh bergantung pada fallback.
 
-## Seed login dan onboarding
+## Test dan build
 
-Migration seed membuat owner demo untuk local/dev:
+```bash
+cd backend-api && go test ./...
+cd frontend-owner && npm run build && npm run test
+cd frontend-tenant && npm run build && npm run test
+```
+
+## Dev seed login dan onboarding
+
+Schema migration tidak membuat demo user. Untuk local/dev saja, apply seed manual setelah migration:
+
+```bash
+cd backend-api
+psql "$DATABASE_URL" -f seeds/dev/demo_users.up.sql
+```
+
+Seed local/dev membuat akun demo:
 
 - Email: `owner@app.local`
 - Password: `DemoPass123!`
+- Email: `admin@tenant.local`
+- Password: `DemoPass123!`
 
-Rotate password sebelum shared/prod.
+Jangan jalankan seed ini pada shared/staging/prod. Cleanup local/dev:
+
+```bash
+cd backend-api
+psql "$DATABASE_URL" -f seeds/dev/demo_users.down.sql
+```
 
 Flow awal:
 
@@ -174,12 +198,15 @@ Env penting production:
 - `DATABASE_URL`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
+- `JWT_REFRESH_COOKIE_SECURE=true`
+- `JWT_REFRESH_COOKIE_SAME_SITE=lax` (atau `none` bila frontend/API beda site; wajib HTTPS/secure cookie)
 - `CORS_ALLOWED_ORIGINS`
 
 ## Security notes
 
 - Set `JWT_ACCESS_SECRET` dan `JWT_REFRESH_SECRET`; jangan pakai secret kosong.
-- Ganti/rotate password seeded owner sebelum shared/prod.
+- Refresh token dikirim via HttpOnly cookie path `/api/v1/auth`; frontend tidak menyimpan token di localStorage/sessionStorage.
+- Jangan apply `backend-api/seeds/dev/*` ke shared/staging/prod.
 - Jangan log password, token, refresh token, temporary password, atau secret.
 - Query tenant wajib filter `tenant_id`.
 - `X-Tenant-ID` wajib divalidasi terhadap membership user.

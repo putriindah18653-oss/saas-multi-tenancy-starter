@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/audit"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/common"
 	"github.com/putriindah18653-oss/saas-multi-tenancy-starter/backend-api/internal/http/response"
@@ -77,6 +79,10 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.svc.Delete(r.Context(), id); err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			response.Error(w, r, 500, "tenant_delete_failed", "could not delete tenant")
+			return
+		}
 		response.Error(w, r, 404, "tenant_not_found", "tenant not found")
 		return
 	}
@@ -84,6 +90,9 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, r, 200, map[string]any{"deleted": true})
 }
 func (h *TenantHandler) log(r *http.Request, action, id string) {
+	if h.audit == nil {
+		return
+	}
 	ac, _ := middleware.AuthFromContext(r.Context())
 	if err := h.audit.Log(r.Context(), ac.UserID, "", action, "tenant", id, map[string]any{}, common.ClientIP(r, h.trustProxy), r.UserAgent()); err != nil {
 		response.LogError(r, "audit write failed", "action", action, "error", err)

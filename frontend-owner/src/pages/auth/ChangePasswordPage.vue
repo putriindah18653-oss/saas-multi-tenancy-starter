@@ -79,7 +79,7 @@ async function submit() {
   try {
     await authService.changePassword({ current_password: form.currentPassword, new_password: form.newPassword })
     if (auth.accessToken && auth.user) {
-      auth.setSession({ accessToken: auth.accessToken, refreshToken: auth.refreshToken || undefined, user: { ...auth.user, must_change_password: false } })
+      auth.setSession({ accessToken: auth.accessToken, user: { ...auth.user, must_change_password: false } })
     }
     success.value = true
     router.push({ name: auth.defaultHomeRoute })

@@ -14,7 +14,7 @@
     </div>
 
     <div class="image-upload__body">
-      <input ref="fileInput" type="file" class="hidden" :accept="accept" @change="onFileSelect" />
+      <input ref="fileInput" type="file" class="hidden" :accept="accept" aria-label="Choose image file" @change="onFileSelect" />
 
       <p class="image-upload__title">{{ title }}</p>
       <p class="image-upload__hint">{{ hint }}</p>
@@ -38,6 +38,7 @@
       </div>
 
       <p v-if="pendingFile" class="image-upload__pending">{{ pendingFile.name }} — akan diupload saat save.</p>
+      <p v-if="fileError" class="image-upload__error" role="alert">{{ fileError }}</p>
       <p class="image-upload__meta">{{ meta }}</p>
     </div>
   </div>
@@ -61,7 +62,7 @@ const props = withDefaults(defineProps<{
   hint: 'Drag & drop atau klik upload',
   meta: 'PNG, JPG, WebP, AVIF. Max 8 MB.',
   alt: 'Preview',
-  accept: 'image/png,image/jpeg,image/webp,image/gif,image/avif',
+  accept: 'image/png,image/jpeg,image/webp,image/avif',
   shape: 'rounded',
   initials: '',
 })
@@ -71,11 +72,15 @@ const emit = defineEmits<{
   'update:file': [file: File | null]
 }>()
 
+const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
+const maxImageSize = 8 * 1024 * 1024
+
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragover = ref(false)
 const previewFailed = ref(false)
 const pendingFile = ref<File | null>(null)
 const localPreview = ref<string | null>(null)
+const fileError = ref('')
 
 const resolvedUrl = computed(() => {
   if (!props.modelValue) return ''
@@ -88,13 +93,37 @@ const fallbackInitials = computed(() => props.initials || '?')
 function setFile(file: File | null) {
   if (localPreview.value) URL.revokeObjectURL(localPreview.value)
   if (file) {
+    if (!isValidImage(file)) {
+      localPreview.value = null
+      pendingFile.value = null
+      previewFailed.value = false
+      emit('update:file', null)
+      return
+    }
+
     localPreview.value = URL.createObjectURL(file)
     previewFailed.value = false
   } else {
     localPreview.value = null
+    fileError.value = ''
   }
   pendingFile.value = file
   emit('update:file', file)
+}
+
+function isValidImage(file: File) {
+  if (!allowedImageTypes.has(file.type)) {
+    fileError.value = 'Format gambar harus JPG, PNG, WebP, atau AVIF.'
+    return false
+  }
+
+  if (file.size > maxImageSize) {
+    fileError.value = 'Ukuran gambar maksimal 8 MB.'
+    return false
+  }
+
+  fileError.value = ''
+  return true
 }
 
 function onFileSelect(event: Event) {
@@ -251,6 +280,13 @@ defineExpose({ pendingFile })
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--accent);
+}
+
+.image-upload__error {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--danger);
 }
 
 .image-upload__meta {

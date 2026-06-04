@@ -11,18 +11,16 @@ export async function hydrateSession() {
   if (auth.hydrated) return auth.isAuthenticated
   if (hydrationPromise) return hydrationPromise
 
-  if (!auth.refreshToken) {
-    auth.setHydrationState({ hydrated: true, hydrating: false })
-    tenant.clearTenant()
-    return false
-  }
-
   auth.setHydrationState({ hydrating: true })
 
   hydrationPromise = authService
-    .refreshToken(auth.refreshToken)
+    .refreshToken()
     .then(async (refreshResponse) => {
       const refreshPayload = refreshResponse.data.data
+      auth.setSession({
+        accessToken: refreshPayload.access_token,
+        user: refreshPayload.user ?? auth.user,
+      })
 
       const meResponse = await authService.me()
       const mePayload = meResponse.data.data

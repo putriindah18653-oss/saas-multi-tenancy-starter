@@ -39,6 +39,8 @@ type RedisConfig struct {
 type JWTConfig struct {
 	AccessSecret, RefreshSecret       string
 	AccessTTLMinutes, RefreshTTLHours int
+	RefreshCookieSecure               bool
+	RefreshCookieSameSite             string
 }
 type CORSConfig struct {
 	AllowedOrigins []string `json:"allowed_origins"`
@@ -58,7 +60,14 @@ func Load() (*Config, error) {
 			Addr: env("REDIS_ADDR", "localhost:6379"), Password: env("REDIS_PASSWORD", ""), DB: envInt("REDIS_DB", 0),
 			DialTimeout: envDuration("REDIS_DIAL_TIMEOUT", 5*time.Second), ReadTimeout: envDuration("REDIS_READ_TIMEOUT", 3*time.Second), WriteTimeout: envDuration("REDIS_WRITE_TIMEOUT", 3*time.Second), HealthTimeout: envDuration("REDIS_HEALTH_TIMEOUT", 3*time.Second),
 		},
-		JWT:  JWTConfig{AccessSecret: env("JWT_ACCESS_SECRET", ""), RefreshSecret: env("JWT_REFRESH_SECRET", ""), AccessTTLMinutes: envInt("JWT_ACCESS_TTL_MINUTES", 15), RefreshTTLHours: envInt("JWT_REFRESH_TTL_HOURS", 168)},
+		JWT: JWTConfig{
+			AccessSecret:          env("JWT_ACCESS_SECRET", ""),
+			RefreshSecret:         env("JWT_REFRESH_SECRET", ""),
+			AccessTTLMinutes:      envInt("JWT_ACCESS_TTL_MINUTES", 15),
+			RefreshTTLHours:       envInt("JWT_REFRESH_TTL_HOURS", 168),
+			RefreshCookieSecure:   envBool("JWT_REFRESH_COOKIE_SECURE", false),
+			RefreshCookieSameSite: strings.ToLower(env("JWT_REFRESH_COOKIE_SAME_SITE", "lax")),
+		},
 		CORS: CORSConfig{AllowedOrigins: splitCSV(env("CORS_ALLOWED_ORIGINS", "http://localhost:5173"))},
 	}
 	return cfg, cfg.Validate()
@@ -84,6 +93,12 @@ func (c *Config) Validate() error {
 		if len(c.JWT.AccessSecret) < 32 || len(c.JWT.RefreshSecret) < 32 {
 			return fmt.Errorf("JWT secrets must be at least 32 characters in non-development environments")
 		}
+		if !c.JWT.RefreshCookieSecure {
+			return fmt.Errorf("JWT_REFRESH_COOKIE_SECURE=true is required outside development")
+		}
+		if c.JWT.RefreshCookieSameSite == "none" && !c.JWT.RefreshCookieSecure {
+			return fmt.Errorf("JWT_REFRESH_COOKIE_SECURE=true is required when JWT_REFRESH_COOKIE_SAME_SITE=none")
+		}
 		for _, origin := range c.CORS.AllowedOrigins {
 			if origin == "*" {
 				return fmt.Errorf("CORS wildcard is not allowed outside development")
@@ -92,6 +107,9 @@ func (c *Config) Validate() error {
 		if strings.Contains(c.JWT.AccessSecret, "change-me") || strings.Contains(c.JWT.RefreshSecret, "change-me") {
 			return fmt.Errorf("default JWT secrets are not allowed outside development")
 		}
+	}
+	if c.JWT.RefreshCookieSameSite != "lax" && c.JWT.RefreshCookieSameSite != "strict" && c.JWT.RefreshCookieSameSite != "none" {
+		return fmt.Errorf("JWT_REFRESH_COOKIE_SAME_SITE must be one of: lax, strict, none")
 	}
 	return nil
 }

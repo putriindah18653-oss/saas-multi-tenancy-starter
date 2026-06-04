@@ -62,21 +62,20 @@ function resolveRouteScope(to: RouteLocationNormalized): string | undefined {
 router.beforeEach(async (to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
   const auth = useAuthStore()
 
-  // Restore session only when navigating to protected routes
+  // Restore session from HttpOnly refresh cookie only when navigating to protected routes
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    if (auth.refreshToken) {
-      const restored = await auth.tryRestoreSession()
-      if (!restored) {
-        next({ name: 'auth-login' })
-        return
-      }
-    } else {
+    const restored = await auth.tryRestoreSession()
+    if (!restored) {
       next({ name: 'auth-login' })
       return
     }
   }
 
-  // For guest-only pages, redirect if already authenticated (no async restore here)
+  // For guest-only pages, try HttpOnly refresh cookie before showing login
+  if (to.meta.guestOnly && !auth.isAuthenticated) {
+    await auth.tryRestoreSession()
+  }
+
   if (to.meta.guestOnly && auth.isAuthenticated) {
     next({ name: auth.defaultHomeRoute })
     return
